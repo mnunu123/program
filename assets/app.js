@@ -71,13 +71,13 @@
   const PD = window.PROMPT_DRILLS || [];
 
   // ---------------------------------------------------------------- 상태
-  const state = { exam: null, result: null, drill: null, essay: null, popover: null, confirm: null };
+  const state = { exam: null, result: null, drill: null, essay: null, popover: null, confirm: null, sol: null };
   let ticker = null;
 
   const NAV = [
     { g: '시작', items: [['home', '홈'], ['info', '시험 정보'], ['checklist', '전날·당일 체크리스트']] },
     { g: '유형별 가이드', items: [['guide-mc', '객관식 · O/X'], ['guide-short', '단답형'], ['guide-task', 'AI 과제형'], ['guide-essay', '서술형'], ['templates', '프롬프트 템플릿']] },
-    { g: '실전 연습', items: [['mock-knowledge', '지식평가 모의고사'], ['mock-task', '활용평가 모의고사'], ['essay', '서술형 모의'], ['drill-verify', 'AI 답변 검증 드릴'], ['drill-prompt', '프롬프트 판단 드릴']] },
+    { g: '실전 연습', items: [['mock-knowledge', '지식평가 모의고사'], ['mock-task', '활용평가 모의고사'], ['essay', '서술형 모의'], ['drill-verify', 'AI 답변 검증 드릴'], ['drill-prompt', '프롬프트 판단 드릴'], ['solutions', '정답·풀이 가이드']] },
     { g: '정리', items: [['cheat', '개념 치트시트'], ['case', '넥슨 시험 복기'], ['notes', '오답노트'], ['settings', '설정 · AI 연결']] }
   ];
 
@@ -97,7 +97,7 @@
       'guide-mc': () => page(G.mc), 'guide-short': () => page(G.short), 'guide-task': () => page(G.task), 'guide-essay': () => page(G.essay),
       templates: viewTemplates, 'mock-knowledge': viewKMenu, 'mock-task': viewTMenu, essay: viewEssay,
       'drill-verify': () => viewDrill('verify'), 'drill-prompt': () => viewDrill('prompt'),
-      cheat: viewCheat, case: () => page(G.caseStudy), notes: viewNotes, settings: viewSettings
+      cheat: viewCheat, case: () => page(G.caseStudy), notes: viewNotes, settings: viewSettings, solutions: viewSolutions
     };
     view.innerHTML = (pages[r] || viewHome)();
     if (r === 'essay') afterEssayRender();
@@ -127,6 +127,7 @@
       ['t4', '공식 체험판 3종 직접 풀기', 'info'],
       ['t5', '지식평가 모의 B + 검증 드릴', 'mock-knowledge'],
       ['t6', '활용평가 전체 90분 (과제 3은 토큰 분할 연습)', 'mock-task'],
+      ['t6b', '틀린 과제는 정답·풀이 가이드의 회차별 프롬프트와 비교', 'solutions'],
       ['t7', '오답노트, 치트시트 함정 열 훑기', 'notes'],
       ['t8', '당일 체크리스트', 'checklist']
     ];
@@ -352,18 +353,15 @@
   <h1>${esc(r.label)}: ${r.score} / ${r.items.length}</h1>
   <p class="lede">걸린 시간 ${mmss(r.used)}. 틀린 문항은 오답노트에 저장했다.</p>
   <div class="row"><button class="btn primary" data-act="result-close">목록으로</button>
-  ${r.items.some((x) => !x.ok) ? `<button class="btn" data-act="retry-wrong-k">틀린 것만 다시</button>` : ''}</div>
+  ${r.items.some((x) => !x.ok) ? `<button class="btn" data-act="retry-wrong-k">틀린 것만 다시</button>` : ''}<button class="btn" data-act="go-sol" data-tab="knowledge">보기별 해설 전체 보기</button></div>
   <h2>영역별</h2>
   <div class="area-bars">${Object.entries(byArea).map(([a, v]) => `<div class="area"><span class="a-name">${esc(a)}</span><span class="a-bar"><i style="width:${Math.round(v.ok / v.n * 100)}%"></i></span><span class="a-num num">${v.ok}/${v.n}</span></div>`).join('')}</div>
   <h2>문항별 해설</h2>
   ${r.items.map((x, i) => `
   <details class="review ${x.ok ? 'ok' : 'bad'}"${x.ok ? '' : ' open'}>
     <summary><span class="badge ${x.ok ? 'ok' : 'bad'}">${x.ok ? '정답' : '오답'}</span> <b>${i + 1}.</b> ${esc(x.q.area)} <span class="muted">· ${qTypeLabel(x.q)}</span></summary>
-    <p class="q-stem">${esc(x.q.stem)}</p>
     <div class="ans-grid"><div><span class="muted small">내 답</span><p>${esc(ansText(x.q, x.v))}</p></div><div><span class="muted small">정답</span><p><b>${esc(correctText(x.q))}</b></p></div></div>
-    <p>${esc(x.q.why)}</p>
-    ${x.q.trap ? `<p class="trap-line"><b>함정</b> ${esc(x.q.trap)}</p>` : ''}
-    ${srcList(x.q.src)}
+    ${kExplain(x.q, x.v)}
   </details>`).join('')}
 </article>`;
   }
@@ -721,8 +719,8 @@
 <article class="doc wide">
   <p class="eyebrow">채점 결과${r.auto ? ' · 시간 종료로 자동 제출' : ''}</p>
   <h1>${esc(r.label)}: ${r.score} / ${r.total}</h1>
-  <p class="lede">걸린 시간 ${mmss(r.used)}. 문항마다 정답 계산 과정과 AI가 놓치기 쉬운 함정을 붙였다.</p>
-  <div class="row"><button class="btn primary" data-act="result-close">목록으로</button></div>
+  <p class="lede">걸린 시간 ${mmss(r.used)}. 과제마다 회차별 풀이(문제 선택, 첨부 파일, 프롬프트 전문, AI가 줘야 할 값)를 붙였다. 내 프롬프트 기록과 나란히 비교해 본다.</p>
+  <div class="row"><button class="btn primary" data-act="result-close">목록으로</button><button class="btn" data-act="go-sol" data-tab="task" data-task="${r.tasks[0].t.id}">정답·풀이 가이드에서 보기</button></div>
   ${r.tasks.map((x, ti) => {
     const used = s.turns - x.ai.left;
     const userMsgs = x.ai.msgs.filter((m) => m.role === 'user');
@@ -736,10 +734,13 @@
       <p>${esc(it.q.why)}</p>
       <p class="trap-line"><b>함정</b> ${esc(it.q.trap)}</p>
     </details>`).join('')}
+    <details class="walk"${x.items.every((i) => i.ok) ? '' : ' open'}>
+      <summary>회차별 풀이 가이드: 문제 선택 · 첨부 파일 · 프롬프트 전문 · AI가 줘야 할 값</summary>
+      ${renderWalkTask(x.t)}
+    </details>
     <div class="two-col">
       <div class="panel">
-        <h3>모범 1차 프롬프트 <span class="muted num small">${fmt(x.t.promptExample.length)}자</span></h3>
-        <pre class="tmpl">${esc(x.t.promptExample)}</pre>
+        <h3>이 과제에서 가져갈 것</h3>
         <ul class="small">${x.t.lessons.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
       </div>
       <div class="panel">
@@ -823,7 +824,7 @@
   // ---------------------------------------------------------------- 드릴
   function viewDrill(kind) {
     const data = kind === 'verify' ? VD : PD;
-    if (!state.drill || state.drill.kind !== kind) state.drill = { kind, i: 0, picked: null, score: 0, done: 0, order: shuffle(data.map((_, i) => i)) };
+    if (!state.drill || state.drill.kind !== kind) state.drill = { kind, i: 0, picked: null, score: 0, done: 0, order: shuffle(data.map((_, i) => i)), perm: data.map((it) => shuffle(it.options.map((_, i) => i))) };
     const d = state.drill;
     if (d.i >= data.length) {
       return page(`<h1>${kind === 'verify' ? 'AI 답변 검증 드릴' : '프롬프트 판단 드릴'} 완료</h1>
@@ -842,10 +843,11 @@
       ${kind === 'verify' ? `<div class="drill-ctx"><span class="muted small">상황</span><pre class="doc-pre">${esc(item.context)}</pre></div>
         <div class="bubble ai solo"><span class="muted small">AI 답변</span><div class="b-text">${esc(item.ai)}</div></div>
         <p><b>이 답변의 가장 큰 문제는?</b></p>` : `<p class="q-stem">${esc(item.stem)}</p>`}
-      <div class="opts">${item.options.map((o, i) => {
+      <div class="opts">${d.perm[d.order[d.i]].map((i, k) => {
+        const o = item.options[i];
         let cls = 'opt';
         if (picked != null) { if (i === item.answer) cls += ' right'; else if (i === picked) cls += ' wrong'; }
-        return `<button class="${cls}" data-act="drill-pick" data-v="${i}"${picked != null ? ' disabled' : ''}><span class="opt-n">${i + 1}</span><span class="opt-t">${esc(o)}</span></button>`;
+        return `<button class="${cls}" data-act="drill-pick" data-v="${i}"${picked != null ? ' disabled' : ''}><span class="opt-n">${k + 1}</span><span class="opt-t">${esc(o)}</span></button>`;
       }).join('')}</div>
       ${picked != null ? `<div class="explain ${picked === item.answer ? 'ok' : 'bad'}"><b>${picked === item.answer ? '정답' : '오답'}</b> ${esc(item.why)}</div>
         <div class="row"><button class="btn primary" data-act="drill-next">다음</button></div>` : ''}
@@ -907,7 +909,7 @@
     <label class="sr-only" for="essay-text">보고서 본문</label>
     <textarea id="essay-text" rows="16" data-act="essay-text" placeholder="섹션 제목부터 적고 채운다. 결론 → 근거(수치·출처) → 한계 순서.">${esc(st.text)}</textarea>
     <p class="muted small">입력하는 동안 이 브라우저에 자동 저장된다.</p>
-    <div class="row"><button class="btn" data-act="e-rubric">${st.showRubric ? '채점표 닫기' : '자가 채점표 열기'}</button><button class="btn" data-act="e-outline">${st.showOutline ? '모범 개요 닫기' : '모범 답안 개요 보기'}</button>
+    <div class="row"><button class="btn" data-act="go-sol" data-tab="essay">모범 답안·회차별 풀이 보기</button><button class="btn" data-act="e-rubric">${st.showRubric ? '채점표 닫기' : '자가 채점표 열기'}</button><button class="btn" data-act="e-outline">${st.showOutline ? '모범 개요 닫기' : '모범 답안 개요 보기'}</button>
     ${s.provider !== 'none' && s.apiKey ? '<button class="btn" data-act="e-feedback">AI 피드백 받기 (횟수 미차감)</button>' : ''}</div>
     ${st.showRubric ? `<div class="two-col">
       <div class="panel"><h3>결과 평가 <span class="num muted">${scoreOf(rubric.result)}/50</span></h3>${rubric.result.map((r) => `<label class="rub"><input type="checkbox" id="rub-${r.k}" data-act="rub" data-k="${r.k}"${st.checks[r.k] ? ' checked' : ''}> <span>${esc(r.t)}</span></label>`).join('')}</div>
@@ -938,6 +940,121 @@
       else if (left > 0) { btn.disabled = true; btn.textContent = `대기 ${Math.ceil(left / 1000)}초`; }
       else { btn.disabled = ai.left <= 0; btn.textContent = '보내기'; }
     }, 500);
+  }
+
+  // ---------------------------------------------------------------- 정답·풀이 가이드
+  function tbl(x) {
+    return `<div class="table-wrap"><table class="compact"><caption>${esc(x.caption)}</caption>
+      <thead><tr>${x.headers.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead>
+      <tbody>${x.rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  }
+
+  // 지식평가 한 문항의 풀이: 단서 → 보기별 정오 이유 → 정리
+  function kExplain(q, user) {
+    let body = '';
+    if (q.type === 'mc') {
+      body = `<ol class="opt-review">${q.options.map((o, i) => {
+        const ok = i === q.answer;
+        const mine = user === i && !ok;
+        return `<li class="${ok ? 'ok' : 'no'}${mine ? ' mine' : ''}"><span class="mark">${ok ? '정답' : mine ? '내 선택' : '오답'}</span>
+          <span class="o">${esc(o)}</span><span class="r">${esc((q.elim || [])[i] || '')}</span></li>`;
+      }).join('')}</ol>`;
+    } else if (q.type === 'ox') {
+      body = `<p class="ox-ans">정답 <b>${q.answer}</b></p>`;
+    } else {
+      body = `<p class="ox-ans">정답 <b>${esc(q.answer[0])}</b>${q.answer.length > 1 ? ` <span class="muted small">(인정: ${q.answer.slice(1).map(esc).join(', ')})</span>` : ''}</p>${q.calc ? `<p class="calc"><b>풀이</b> ${esc(q.calc)}</p>` : ''}`;
+    }
+    return `${q.clue ? `<p class="clue"><b>먼저 볼 단서</b> ${esc(q.clue)}</p>` : ''}${body}
+      <p><b>정리</b> ${esc(q.why)}</p>${q.trap ? `<p class="trap-line"><b>함정</b> ${esc(q.trap)}</p>` : ''}${srcList(q.src)}`;
+  }
+
+  function turnCard(turn, fileTok, idp) {
+    const s = S();
+    const tok = turn.attach.reduce((a, n) => a + (fileTok[n] || 0), 0);
+    const pid = `${idp}-t${turn.n}`;
+    return `<section class="turn">
+      <div class="turn-head"><span class="turn-n">${turn.n}회차</span><b>${esc(turn.title)}</b></div>
+      <div class="turn-grid">
+        ${turn.select ? `<div><span class="lab">‘문제’ 버튼에서 선택</span><div>${turn.select.length ? turn.select.map((n) => `<span class="pill">${n}번</span>`).join('') : '<span class="muted">선택 없음</span>'}</div></div>` : ''}
+        <div><span class="lab">‘AI 질문에 추가’로 첨부</span>${turn.attach.length
+          ? `<ul class="att">${turn.attach.map((n) => `<li><span>${esc(n)}</span><span class="num">${fmt(fileTok[n] || 0)}</span></li>`).join('')}</ul><div class="att-sum num${tok > s.attachCap ? ' over' : ''}">합계 ${fmt(tok)} / ${fmt(s.attachCap)} 토큰</div>`
+          : '<div class="muted">첨부 없음 (필요한 숫자는 프롬프트에 직접 적는다)</div>'}</div>
+      </div>
+      <div class="lab-row"><span class="lab">입력창에 칠 프롬프트</span><span class="num muted small">${fmt(turn.prompt.length)} / ${fmt(s.charCap)}자</span><button class="btn tiny" data-act="copy-pre" data-target="${pid}">복사 (연습용)</button></div>
+      <pre class="tmpl" id="${pid}">${esc(turn.prompt)}</pre>
+      <p class="why-line"><b>이렇게 쓴 이유</b> ${esc(turn.why)}</p>
+      <span class="lab">AI 답에서 나와야 하는 값</span>
+      ${turn.expect.map(tbl).join('')}
+      <span class="lab">받은 답에서 확인할 것</span>
+      <ul class="checks">${turn.checks.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>
+    </section>`;
+  }
+
+  function renderWalkTask(t) {
+    const w = t.walk;
+    if (!w) return '<p class="muted">풀이 데이터가 없다.</p>';
+    const fileTok = Object.fromEntries(t.files.map((f) => [f.name, f.tokens]));
+    return `<div class="walk-body">
+      <p class="goal">${esc(w.goal)}</p>
+      <h3>1. 문항 4개를 먼저 읽고 필요한 것 적기</h3>
+      ${tbl({ caption: '문항별로 필요한 판정·계산과 근거 자료', headers: ['문항', '필요한 것', '볼 자료'], rows: w.reading.map((r) => [r.q, r.need, r.src]) })}
+      <h3>2. 첨부 계획 (파일 목록 토큰량 확인)</h3>
+      <p>${esc(w.plan)}</p>
+      ${w.batches ? tbl({ caption: '동호회 묶음', headers: ['묶음', '동호회', '토큰'], rows: w.batches.map((b) => [b.label, b.clubs.join(', '), fmt(b.tokens)]) }) : ''}
+      <details class="mini"><summary>파일별 토큰량 (합계 ${fmt(t.totalTokens)})</summary>
+        ${tbl({ caption: '파일 목록', headers: ['파일명', '토큰량'], rows: t.files.map((f) => [f.name, fmt(f.tokens)]) })}</details>
+      <h3>3. 회차별 진행</h3>
+      ${w.turns.map((turn) => turnCard(turn, fileTok, `w-${t.id}`)).join('')}
+      ${w.manual ? `<section class="turn manual"><div class="turn-head"><span class="turn-n">손</span><b>${esc(w.manual.title)}</b></div><p>${esc(w.manual.text)}</p>${w.manual.tables.map(tbl).join('')}</section>` : ''}
+      <h3>4. 답 입력</h3>
+      ${tbl({ caption: '최종 답과 검산', headers: ['문항', '정답', '어떻게 나왔나'], rows: w.final.map((f) => [f.q, f.answer, f.how]) })}
+      <p class="muted small">${esc(w.usage)}</p>
+    </div>`;
+  }
+
+  function viewSolutions() {
+    if (!state.sol) state.sol = { tab: 'task', task: 'T1', kset: 'A' };
+    const sol = state.sol;
+    const tabs = [['task', '활용평가 회차별 풀이'], ['knowledge', '지식평가 보기별 해설'], ['essay', '서술형 모범답안']];
+    let body = '';
+    if (sol.tab === 'task') {
+      const t = TMAP[sol.task] || TASKS[0];
+      body = `<div class="seg sub" role="tablist">${TASKS.map((x, i) => `<button role="tab" class="seg-btn${x.id === t.id ? ' on' : ''}" aria-selected="${x.id === t.id}" data-act="sol-task" data-task="${x.id}">과제 ${i + 1}. ${esc(x.title)}</button>`).join('')}</div>
+        <h2>${esc(t.title)}</h2>
+        <p class="muted">${esc(t.scenario)}</p>
+        ${renderWalkTask(t)}`;
+    } else if (sol.tab === 'knowledge') {
+      const sets = window.KNOWLEDGE_SETS || {};
+      const ids = sol.kset === 'ALL' ? K.map((q) => q.id) : (sets[sol.kset] || []);
+      body = `<div class="seg sub" role="tablist">${[['A', '세트 A'], ['B', '세트 B'], ['ALL', `전체 ${K.length}문항`]].map(([k, l]) => `<button role="tab" class="seg-btn${sol.kset === k ? ' on' : ''}" aria-selected="${sol.kset === k}" data-act="sol-kset" data-set="${k}">${l}</button>`).join('')}</div>
+        <p class="muted">지식평가는 AI를 쓰지 않는 세션이다. 풀이 순서는 ‘질문 문장 → 보기 차이 → 지문 단서’다. 문항마다 먼저 볼 단서와 보기별로 맞고 틀린 이유를 붙였다.</p>
+        <div class="row"><button class="btn small" data-act="sol-open-all">모두 펼치기</button><button class="btn small" data-act="sol-close-all">모두 접기</button></div>
+        ${ids.map((id, i) => { const q = KMAP[id]; return q ? `<details class="review sol"><summary><b>${i + 1}.</b> ${esc(q.area)} <span class="muted">· ${qTypeLabel(q)} · ${q.id}</span></summary><p class="q-stem">${esc(q.stem)}</p>${kExplain(q)}</details>` : ''; }).join('')}`;
+    } else {
+      const { e, files } = essayCtx();
+      const w = e.walk;
+      const fileTok = Object.fromEntries(files.map((f) => [f.name, f.tokens]));
+      body = `<h2>${esc(e.title)}</h2>
+        <p class="goal">${esc(w.goal)}</p>
+        <h3>1. 회차 계획</h3>
+        ${tbl({ caption: '회차별 목적과 첨부', headers: ['회차', '목적', '첨부', '쓰는 곳'], rows: w.plan })}
+        <h3>2. 회차별 진행</h3>
+        ${w.turns.map((turn) => turnCard(turn, fileTok, 'w-E1')).join('')}
+        <section class="turn manual"><div class="turn-head"><span class="turn-n">손</span><b>비식별 최종 점검</b></div><ul class="checks">${w.deid.map((d) => `<li>${esc(d)}</li>`).join('')}</ul></section>
+        <h3>3. 모범 보고서 전문</h3>
+        <div class="row"><span class="num muted small">${fmt(e.model.length)}자</span><button class="btn tiny" data-act="copy-pre" data-target="model-E1">복사 (연습용)</button></div>
+        <pre class="report-pre" id="model-E1">${esc(e.model)}</pre>
+        <h3>4. 채점표 항목별로 어디서 점수를 받는지</h3>
+        ${tbl({ caption: '채점 항목 ↔ 풀이 단계', headers: ['채점 항목', '해당 단계'], rows: w.rubricMap })}
+        <p class="muted small">${esc(w.usage)}</p>`;
+    }
+    return `<article class="doc wide">
+      <p class="eyebrow">정답·풀이 가이드</p>
+      <h1>어떻게 첨부하고, 무엇을 물어야 하나</h1>
+      <p class="warn-line"><b>먼저 풀고 볼 것.</b> 정답과 프롬프트 전문이 다 나온다. 모의고사를 한 번 풀어 본 뒤 내 프롬프트 기록과 비교하는 용도로 쓴다.</p>
+      <div class="seg" role="tablist">${tabs.map(([k, l]) => `<button role="tab" class="seg-btn${sol.tab === k ? ' on' : ''}" aria-selected="${sol.tab === k}" data-act="sol-tab" data-tab="${k}">${l}</button>`).join('')}</div>
+      ${body}
+    </article>`;
   }
 
   // ---------------------------------------------------------------- 오답노트
@@ -1091,6 +1208,18 @@
       case 'e-outline': state.essay.showOutline = !state.essay.showOutline; render(); break;
       case 'e-feedback': essayFeedback(el); break;
       case 'set-test': testConnection(); break;
+      case 'sol-tab': state.sol.tab = el.dataset.tab; render(); break;
+      case 'sol-task': state.sol.task = el.dataset.task; render(); break;
+      case 'sol-kset': state.sol.kset = el.dataset.set; render(); break;
+      case 'sol-open-all': $$('details.sol').forEach((d) => { d.open = true; }); break;
+      case 'sol-close-all': $$('details.sol').forEach((d) => { d.open = false; }); break;
+      case 'copy-pre': { const src = document.getElementById(el.dataset.target); if (src) copyText(src.textContent, el); break; }
+      case 'go-sol': {
+        state.sol = Object.assign(state.sol || { tab: 'task', task: 'T1', kset: 'A' }, { tab: el.dataset.tab || 'task' }, el.dataset.task ? { task: el.dataset.task } : {});
+        state.result = null;
+        if (route() === 'solutions') render(); else location.hash = 'solutions';
+        break;
+      }
       case 'reset-ask': state.confirm = { title: '학습 기록을 지울까요?', body: '모의고사 기록, 오답노트, 체크 상태, 서술형 초안이 지워진다.', yes: '지우기', on: () => { ['attempts', 'wrongK', 'wrongT', 'wrongD', 'todo', 'check', 'essay-E1'].forEach(store.del); state.confirm = null; state.essay = null; toast('지웠다.'); render(); } }; render(); break;
       default: break;
     }
