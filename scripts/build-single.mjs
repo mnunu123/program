@@ -12,7 +12,7 @@ const safeJs = (s) => s.replace(/<\/script/gi, '<\\/script');
 const html = read('index.html');
 const css = read('assets/style.css');
 const scripts = [
-  'assets/data/guide.js', 'assets/data/knowledge.js', 'assets/data/tasks.js',
+  'assets/data/guide.js', 'assets/data/knowledge.js', 'assets/data/knowledge2.js', 'assets/data/tasks.js',
   'assets/data/drills.js', 'assets/data/essay.js', 'assets/app.js'
 ].map((p) => `/* ${p} */\n` + safeJs(read(p))).join('\n');
 

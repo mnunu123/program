@@ -75,7 +75,7 @@
   let ticker = null;
 
   const NAV = [
-    { g: '시작', items: [['home', '홈'], ['info', '시험 정보'], ['checklist', '전날·당일 체크리스트']] },
+    { g: '시작', items: [['home', '홈'], ['dday', '내일 실전 플랜 (후기 반영)'], ['info', '시험 정보'], ['checklist', '전날·당일 체크리스트']] },
     { g: '유형별 가이드', items: [['guide-mc', '객관식 · O/X'], ['guide-short', '단답형'], ['guide-task', 'AI 과제형'], ['guide-essay', '서술형'], ['templates', '프롬프트 템플릿']] },
     { g: '실전 연습', items: [['mock-knowledge', '지식평가 모의고사'], ['mock-task', '활용평가 모의고사'], ['essay', '서술형 모의'], ['drill-verify', 'AI 답변 검증 드릴'], ['drill-prompt', '프롬프트 판단 드릴'], ['solutions', '정답·풀이 가이드']] },
     { g: '정리', items: [['cheat', '개념 치트시트'], ['case', '넥슨 시험 복기'], ['notes', '오답노트'], ['settings', '설정 · AI 연결']] }
@@ -93,7 +93,7 @@
     renderNav();
     const r = route();
     const pages = {
-      home: viewHome, info: () => page(G.info), checklist: viewChecklist,
+      home: viewHome, dday: () => page(G.dday || ''), info: () => page(G.info), checklist: viewChecklist,
       'guide-mc': () => page(G.mc), 'guide-short': () => page(G.short), 'guide-task': () => page(G.task), 'guide-essay': () => page(G.essay),
       templates: viewTemplates, 'mock-knowledge': viewKMenu, 'mock-task': viewTMenu, essay: viewEssay,
       'drill-verify': () => viewDrill('verify'), 'drill-prompt': () => viewDrill('prompt'),
@@ -121,6 +121,11 @@
   function viewHome() {
     const attempts = store.get('attempts', []);
     const todo = [
+      ['d1', '내일 실전 플랜 읽기 (10분, 입실 마감 꼭 확인)', 'dday'],
+      ['d2', '지식평가 실전형 세트 C 30분 → 보기별 해설', 'mock-knowledge'],
+      ['d3', '과제 5 불량 판정 22분 → 회차별 풀이와 비교', 'mock-task'],
+      ['d4', '치트시트 새 용어 (보안·사내 환경·고객 응대·RAG·VOC)', 'cheat'],
+      ['d5', '실전형 세트 D 30분 (시간 남으면)', 'mock-knowledge'],
       ['t1', '시험 정보 읽기 (5분)', 'info'],
       ['t2', '객관식 가이드 → 지식평가 모의 A', 'guide-mc'],
       ['t3', 'AI 과제형 가이드 → 활용평가 과제 1개', 'guide-task'],
@@ -137,18 +142,19 @@
 <section class="hero">
   <p class="eyebrow">SK하이닉스 AI 해커톤 2026 · 1차 예선</p>
   <h1>프로그래머스 AI 역량평가<br>실전 대비 노트</h1>
-  <p class="lede">1차 예선은 10/17(토)~18(일) 중 하루, 온라인. 세션은 20문항 30분과 16문항 90분으로 알려져 있다(영상 기준). 아래 숫자가 시험장의 실제 단위다.</p>
+  <p class="lede">1차 예선은 10/17(토)~18(일) 중 하루, 온라인. 1교시 지식(전부 객관식), 2교시 AI 활용 과제. 10/17 응시 후기를 반영해 1교시 실전 형식(ㄱㄴㄷㄹ 고르기·순서 배열·빈칸)과 2교시 불량 판정 과제를 추가했다.</p>
+  <a class="dday-banner" href="#dday"><b>내일 시험이면 여기부터</b><span>쉬는 시간 10분, 2교시 입실 마감을 넘기면 응시 불가. 후기로 확인된 것과 오늘 밤 공부 순서</span></a>
   <div class="gauge-row">
     <div class="gauge"><span class="g-num">1,000<small>자</small></span><span class="g-lab">프롬프트 입력 한도</span></div>
     <div class="gauge"><span class="g-num">20,000<small>토큰</small></span><span class="g-lab">질문 1회 첨부 한도</span></div>
-    <div class="gauge"><span class="g-num">10<small>회</small></span><span class="g-lab">1~4번 공유 (체험판)</span></div>
-    <div class="gauge"><span class="g-num">90<small>초</small></span><span class="g-lab">지식평가 문항당</span></div>
-    <div class="gauge"><span class="g-num">22<small>분</small></span><span class="g-lab">과제 1개당</span></div>
+    <div class="gauge"><span class="g-num">절반<small>까지</small></span><span class="g-lab">실제로 채울 첨부량 (후기)</span></div>
+    <div class="gauge"><span class="g-num">30<small>초</small></span><span class="g-lab">질문 후 대기 (후기 확인)</span></div>
+    <div class="gauge"><span class="g-num">10<small>분</small></span><span class="g-lab">교시 사이 쉬는 시간</span></div>
   </div>
   <div class="cta-row">
-    <button class="btn primary" data-act="start-k" data-set="A">지식평가 모의 A · 20문항 30분</button>
-    <button class="btn" data-act="start-t" data-tasks="T1" data-min="22">과제 1개 · 22분</button>
-    <button class="btn" data-act="start-t" data-tasks="T1,T2,T3,T4" data-min="90">활용평가 전체 · 90분</button>
+    <button class="btn primary" data-act="start-k" data-set="C">실전형 세트 C · 20문항 30분</button>
+    <button class="btn" data-act="start-t" data-tasks="T5" data-min="22">과제 5 불량 판정 · 22분</button>
+    <button class="btn" data-act="start-t" data-tasks="T1,T2,T5,T4" data-min="90">활용평가 실전 세션 · 90분</button>
   </div>
 </section>
 
@@ -187,8 +193,8 @@
     const list = (arr, p) => `<ul class="checks interactive">${arr.map((t, i) => `<li><label><input type="checkbox" id="chk-${p}${i}" data-act="check" data-k="${p}${i}"${done[p + i] ? ' checked' : ''}> <span>${esc(t)}</span></label></li>`).join('')}</ul>`;
     return page(`<h1>전날·당일 체크리스트</h1>
       <p class="lede">체크 상태는 이 브라우저에 저장된다.</p>
-      <h2>전날까지</h2>${list(c.before, 'b')}
-      <h2>시험 중</h2>${list(c.during, 'd')}`);
+      <h2>전날까지</h2>${list(c.before, 'B')}
+      <h2>시험 중</h2>${list(c.during, 'D')}`);
   }
 
   // ---------------------------------------------------------------- 템플릿
@@ -232,8 +238,17 @@
     const sets = window.KNOWLEDGE_SETS || {};
     const shorts = K.filter((q) => q.type === 'short').length;
     const ox = K.filter((q) => q.type === 'ox').length;
+    const fresh = K.filter((q) => q.format).length;
     return page(`<h1>지식평가 모의고사</h1>
-      <p class="lede">세션 1(20문항 30분 추정)을 그대로 재현한다. 문항 ${K.length}개 (4지선다 ${K.length - shorts - ox}, O/X ${ox}, 단답형 ${shorts}). 모두 자체 제작이며, 공식 체험판의 형식과 출제 범위를 참고했다.</p>
+      <p class="lede">1교시(20문항 30분 추정). 10/17 후기에 따르면 실제 1교시는 <b>전부 객관식</b>이었고 형식은 ㄱㄴㄷㄹ 고르기, (가)~(마) 순서 배열, (A)(B)(C) 빈칸 채우기였다. 주제는 보안, 사내 환경 설정, 고객 응대, RAG, VOC. 이 형식과 주제로 만든 실전형 ${fresh}문항을 세트 C·D에 넣었다.</p>
+      <h2>실전형 (후기 반영)</h2>
+      <div class="menu-grid">
+        <button class="menu-card" data-act="start-k" data-set="C"><b>실전형 세트 C</b><span>20문항 · 30분 · 새 형식만</span></button>
+        <button class="menu-card" data-act="start-k" data-set="D"><b>실전형 세트 D</b><span>20문항 · 30분 · 새 형식 8 + 기존 상황형 12</span></button>
+        <button class="menu-card" data-act="start-k" data-set="N"><b>새 형식 전체</b><span>${fresh}문항 · 문항당 90초</span></button>
+      </div>
+      <h2>기존 세트 (체험판 형식)</h2>
+      <p class="muted small">문항 ${K.length - fresh}개 (4지선다 ${K.length - fresh - shorts - ox}, O/X ${ox}, 단답형 ${shorts}). 실제 1교시에 O/X와 단답형은 없었다는 후기가 있다. 개념 복습용으로 쓴다.</p>
       <div class="menu-grid">
         <button class="menu-card" data-act="start-k" data-set="A"><b>세트 A</b><span>20문항 · 30분</span></button>
         <button class="menu-card" data-act="start-k" data-set="B"><b>세트 B</b><span>20문항 · 30분</span></button>
@@ -250,19 +265,28 @@
     let label;
     if (ids) { list = ids; label = '오답 다시 풀기'; }
     else if (set === 'A' || set === 'B') { list = sets[set]; label = `지식평가 세트 ${set}`; }
+    else if (set === 'C' || set === 'D') { list = sets[set]; label = `지식평가 실전형 세트 ${set}`; }
+    else if (set === 'N') { list = K.filter((q) => q.format).map((q) => q.id); label = '실전형 새 형식 전체'; }
     else if (set === 'R') { list = shuffle(K.map((q) => q.id)).slice(0, 20); label = '지식평가 무작위 20'; }
     else if (set === 'S') { list = K.filter((q) => q.type === 'short').map((q) => q.id); label = '단답형 모음'; }
     else { list = K.map((q) => q.id); label = '지식평가 전체'; }
     list = list.filter((id) => KMAP[id]);
     const perm = {};
-    list.forEach((id) => { const q = KMAP[id]; if (q.type === 'mc') perm[id] = shuffle(q.options.map((_, i) => i)); });
-    const dur = (set === 'A' || set === 'B' || set === 'R') ? 30 * 60 * 1000 : list.length * 90 * 1000;
+    list.forEach((id) => { const q = KMAP[id]; if (q.type === 'mc') perm[id] = q.fixed ? q.options.map((_, i) => i) : shuffle(q.options.map((_, i) => i)); });
+    const dur = ['A', 'B', 'C', 'D', 'R'].includes(set) ? 30 * 60 * 1000 : list.length * 90 * 1000;
     state.exam = { kind: 'knowledge', label, list, perm, idx: 0, answers: {}, flags: {}, start: Date.now(), duration: dur };
     state.result = null;
     render();
   }
 
-  function qTypeLabel(q) { return q.type === 'mc' ? '객관식' : q.type === 'ox' ? 'O/X' : '주관식'; }
+  function qTypeLabel(q) { return q.type === 'mc' ? (q.format ? `객관식 · ${q.format}` : '객관식') : q.type === 'ox' ? 'O/X' : '주관식'; }
+
+  // 지문 + <보기> 상자 (합답형·순서 배열·빈칸)
+  function qStem(q, nocopy) {
+    const c = nocopy ? ' nocopy' : '';
+    const box = q.box ? `<div class="q-box${c}${q.box.length === 1 ? ' para' : ''}"><span class="q-box-title">${esc(q.boxTitle || (q.box.length === 1 ? '지문' : '보기'))}</span>${q.box.map((l) => `<p>${esc(l)}</p>`).join('')}</div>` : '';
+    return `<p class="q-stem${c}">${esc(q.stem)}</p>${box}`;
+  }
 
   function viewKExam() {
     const ex = state.exam;
@@ -300,7 +324,7 @@
     <section class="qpane">
       <div class="q-head"><span class="q-num">${ex.idx + 1}. ${qTypeLabel(q)}</span><span class="q-area">${esc(q.area)}</span>
         <button class="flag-btn${ex.flags[id] ? ' on' : ''}" data-act="k-flag" aria-pressed="${ex.flags[id] ? 'true' : 'false'}">다시 풀 문제</button></div>
-      <p class="q-stem${S().copyLock ? ' nocopy' : ''}">${esc(q.stem)}</p>
+      ${qStem(q, S().copyLock)}
       ${body}
     </section>
   </div>
@@ -360,6 +384,7 @@
   ${r.items.map((x, i) => `
   <details class="review ${x.ok ? 'ok' : 'bad'}"${x.ok ? '' : ' open'}>
     <summary><span class="badge ${x.ok ? 'ok' : 'bad'}">${x.ok ? '정답' : '오답'}</span> <b>${i + 1}.</b> ${esc(x.q.area)} <span class="muted">· ${qTypeLabel(x.q)}</span></summary>
+    ${qStem(x.q)}
     <div class="ans-grid"><div><span class="muted small">내 답</span><p>${esc(ansText(x.q, x.v))}</p></div><div><span class="muted small">정답</span><p><b>${esc(correctText(x.q))}</b></p></div></div>
     ${kExplain(x.q, x.v)}
   </details>`).join('')}
@@ -381,9 +406,10 @@
   // ---------------------------------------------------------------- 활용평가 메뉴
   function viewTMenu() {
     return page(`<h1>활용평가 모의고사</h1>
-      <p class="lede">세션 2(16문항 90분 추정)를 재현한다. 과제 4개 × 4문항. 화면은 프로그래머스 체험판처럼 지문·파일 목록·문항, 오른쪽 AI 어시스트로 구성했다. AI 어시스트 제약(1,000자, 첨부 20,000토큰, 10회, 쿨타임)을 그대로 건다.</p>
+      <p class="lede">2교시(16문항 90분 추정)를 재현한다. 과제당 4문항. 화면은 프로그래머스 체험판처럼 지문·파일 목록·문항, 오른쪽 AI 어시스트로 구성했다. AI 어시스트 제약(1,000자, 첨부 20,000토큰, 10회, 30초 대기)을 그대로 건다. 10/17 후기: 시간이 매우 부족했고, 내장 AI(후기상 GPT-5.2)는 첨부를 4분의 3쯤 채우면 틀린 답을 냈다. <b>첨부는 절반 이하</b>로 나눠 보내는 연습을 한다.</p>
       <div class="menu-grid">
-        <button class="menu-card wide" data-act="start-t" data-tasks="T1,T2,T3,T4" data-min="90"><b>전체 세션</b><span>과제 4개 · 16문항 · 90분</span></button>
+        <button class="menu-card wide" data-act="start-t" data-tasks="T1,T2,T5,T4" data-min="90"><b>실전 세션 (불량 판정 포함)</b><span>과제 4개 · 16문항 · 90분 · 3번째가 불량 판정</span></button>
+        <button class="menu-card wide" data-act="start-t" data-tasks="T1,T2,T3,T4" data-min="90"><b>기존 세션</b><span>과제 4개 · 16문항 · 90분</span></button>
         ${TASKS.map((t, i) => `<button class="menu-card" data-act="start-t" data-tasks="${t.id}" data-min="22"><b>과제 ${i + 1}. ${esc(t.title)}</b><span>4문항 · 22분 · 파일 ${t.files.length}개 · 약 ${fmt(t.totalTokens)}토큰</span></button>`).join('')}
       </div>
       <h2>AI 어시스트 연결</h2>
@@ -440,7 +466,7 @@
   <div class="tgrid">
     <nav class="qnav" aria-label="문항 목록">
       <div class="qnav-label">객관식/주관식</div>
-      ${ex.tasks.map((id, ti) => `<div class="qnav-task${ti === ex.cur ? ' cur' : ''}"><span class="muted small">과제 ${TASKS.findIndex((x) => x.id === id) + 1}</span><div class="qnav-grid">${TMAP[id].questions.map((q, qi) => {
+      ${ex.tasks.map((id, ti) => `<div class="qnav-task${ti === ex.cur ? ' cur' : ''}"><span class="muted small">과제 ${ti + 1}</span><div class="qnav-grid">${TMAP[id].questions.map((q, qi) => {
         const a = ex.answers[q.id] != null && ex.answers[q.id] !== '';
         return `<button class="qn${a ? ' done' : ''}${ex.flags[q.id] ? ' flag' : ''}" data-act="t-jump" data-ti="${ti}" data-q="${q.id}">${ti * 4 + qi + 1}</button>`;
       }).join('')}</div></div>`).join('')}
@@ -533,8 +559,9 @@
         ${ai.attach.length ? ai.attach.map((n) => `<div class="pop-item"><span>${esc(n)}</span><span class="num muted">${fmt((t.files.find((f) => f.name === n) || {}).tokens || 0)}</span><button class="linkish small" data-act="t-attach" data-f="${esc(n)}">빼기</button></div>`).join('') : '<p class="muted small">파일 목록에서 추가한 파일이 여기에 표시됩니다.</p>'}
         <div class="pop-foot"><button class="linkish small" data-act="menu" data-m="">닫기</button></div></div>` : ''}
     </div>
-    <span class="tok num${attTok > s.attachCap ? ' over' : ''}">${fmt(attTok)}/${fmt(s.attachCap)}</span>
+    <span class="tok num${attTok > s.attachCap ? ' over' : attTok > s.attachCap * 0.75 ? ' hot' : attTok > s.attachCap * 0.5 ? ' warn' : ''}">${fmt(attTok)}/${fmt(s.attachCap)}</span>
   </div>
+  ${attTok > s.attachCap * 0.5 && attTok <= s.attachCap ? `<p class="fill-warn${attTok > s.attachCap * 0.75 ? ' hot' : ''}" role="note">첨부가 한도의 ${Math.round(attTok / s.attachCap * 100)}%다. 10/17 후기: 4분의 3쯤 채우면 내장 AI가 틀린 답만 냈다. 절반 이하로 나눠 보내는 게 안전하다.</p>` : ''}
   <label class="sr-only" for="aiinput">AI에게 보낼 질문</label>
   <textarea id="aiinput" rows="5" placeholder="무엇을 도와드릴까요?" data-act="ai-input">${esc(ai.draft)}</textarea>
   <div class="compose-foot"><span class="count num" id="aicount">${fmt(ai.draft.length)}/${fmt(s.charCap)}</span>
@@ -604,9 +631,11 @@
     const live = s.provider !== 'none' && s.apiKey;
     if (!live) {
       const missed = ai.msgs[ai.msgs.length - 1].checks.filter((c) => !c.ok).map((c) => c.k);
+      const fill = tokens / s.attachCap;
+      const fillNote = fill > 0.5 ? ` <b>첨부 ${Math.round(fill * 100)}%</b>: 실제 시험 내장 AI는 4분의 3쯤 채우면 오답이 많았다는 후기가 있다. 다음엔 절반 이하로 나눠 보낸다.` : '';
       ai.msgs.push({
         role: 'sys', copy: full,
-        html: `연습 모드라 응답을 만들지 않았다. ${missed.length ? `이번 프롬프트에 빠진 요소: <b>${missed.map(esc).join(', ')}</b>.` : '점검 항목을 모두 갖췄다.'} 응답이 필요하면 아래 버튼으로 문항·첨부·질문을 한 번에 복사해 ChatGPT나 Claude에 붙여 넣는다. 실제 시험에서는 외부 AI를 쓸 수 없다.`
+        html: `연습 모드라 응답을 만들지 않았다. ${missed.length ? `이번 프롬프트에 빠진 요소: <b>${missed.map(esc).join(', ')}</b>.` : '점검 항목을 모두 갖췄다.'}${fillNote} 응답이 필요하면 아래 버튼으로 문항·첨부·질문을 한 번에 복사해 ChatGPT나 Claude에 붙여 넣는다. 실제 시험에서는 외부 AI를 쓸 수 없다.`
       });
       opts.rerender();
       return;
@@ -964,7 +993,8 @@
     } else {
       body = `<p class="ox-ans">정답 <b>${esc(q.answer[0])}</b>${q.answer.length > 1 ? ` <span class="muted small">(인정: ${q.answer.slice(1).map(esc).join(', ')})</span>` : ''}</p>${q.calc ? `<p class="calc"><b>풀이</b> ${esc(q.calc)}</p>` : ''}`;
     }
-    return `${q.clue ? `<p class="clue"><b>먼저 볼 단서</b> ${esc(q.clue)}</p>` : ''}${body}
+    const bw = q.boxWhy ? `<div class="box-why"><b>${q.format === '순서 배열' ? '단계별 위치' : '보기 판정'}</b><ul>${q.boxWhy.map((l) => `<li class="${/\(X\)/.test(l) ? 'no' : /\(O\)/.test(l) ? 'ok' : ''}">${esc(l)}</li>`).join('')}</ul></div>` : '';
+    return `${q.clue ? `<p class="clue"><b>먼저 볼 단서</b> ${esc(q.clue)}</p>` : ''}${bw}${body}
       <p><b>정리</b> ${esc(q.why)}</p>${q.trap ? `<p class="trap-line"><b>함정</b> ${esc(q.trap)}</p>` : ''}${srcList(q.src)}`;
   }
 
@@ -1013,7 +1043,7 @@
   }
 
   function viewSolutions() {
-    if (!state.sol) state.sol = { tab: 'task', task: 'T1', kset: 'A' };
+    if (!state.sol) state.sol = { tab: 'task', task: 'T5', kset: 'C' };
     const sol = state.sol;
     const tabs = [['task', '활용평가 회차별 풀이'], ['knowledge', '지식평가 보기별 해설'], ['essay', '서술형 모범답안']];
     let body = '';
@@ -1026,10 +1056,10 @@
     } else if (sol.tab === 'knowledge') {
       const sets = window.KNOWLEDGE_SETS || {};
       const ids = sol.kset === 'ALL' ? K.map((q) => q.id) : (sets[sol.kset] || []);
-      body = `<div class="seg sub" role="tablist">${[['A', '세트 A'], ['B', '세트 B'], ['ALL', `전체 ${K.length}문항`]].map(([k, l]) => `<button role="tab" class="seg-btn${sol.kset === k ? ' on' : ''}" aria-selected="${sol.kset === k}" data-act="sol-kset" data-set="${k}">${l}</button>`).join('')}</div>
+      body = `<div class="seg sub" role="tablist">${[['C', '실전형 C'], ['D', '실전형 D'], ['A', '세트 A'], ['B', '세트 B'], ['ALL', `전체 ${K.length}문항`]].map(([k, l]) => `<button role="tab" class="seg-btn${sol.kset === k ? ' on' : ''}" aria-selected="${sol.kset === k}" data-act="sol-kset" data-set="${k}">${l}</button>`).join('')}</div>
         <p class="muted">지식평가는 AI를 쓰지 않는 세션이다. 풀이 순서는 ‘질문 문장 → 보기 차이 → 지문 단서’다. 문항마다 먼저 볼 단서와 보기별로 맞고 틀린 이유를 붙였다.</p>
         <div class="row"><button class="btn small" data-act="sol-open-all">모두 펼치기</button><button class="btn small" data-act="sol-close-all">모두 접기</button></div>
-        ${ids.map((id, i) => { const q = KMAP[id]; return q ? `<details class="review sol"><summary><b>${i + 1}.</b> ${esc(q.area)} <span class="muted">· ${qTypeLabel(q)} · ${q.id}</span></summary><p class="q-stem">${esc(q.stem)}</p>${kExplain(q)}</details>` : ''; }).join('')}`;
+        ${ids.map((id, i) => { const q = KMAP[id]; return q ? `<details class="review sol"><summary><b>${i + 1}.</b> ${esc(q.area)} <span class="muted">· ${qTypeLabel(q)} · ${q.id}</span></summary>${qStem(q)}${kExplain(q)}</details>` : ''; }).join('')}`;
     } else {
       const { e, files } = essayCtx();
       const w = e.walk;
@@ -1070,7 +1100,7 @@
       <h2>지식평가 <span class="muted">${kIds.length}문항</span></h2>
       ${kIds.length ? `<div class="row"><button class="btn primary" data-act="retry-notes">오답만 모의고사로 풀기 (문항당 90초)</button></div>
       ${kIds.map((id) => { const q = KMAP[id]; return `<details class="review bad"><summary><span class="badge bad">${wk[id]}회</span> ${esc(q.area)} · ${esc(q.stem.slice(0, 60))}…</summary>
-        <p class="q-stem">${esc(q.stem)}</p><p><b>정답</b> ${esc(q.type === 'mc' ? q.options[q.answer] : q.type === 'ox' ? q.answer : q.answer[0])}</p><p>${esc(q.why)}</p>${q.trap ? `<p class="trap-line"><b>함정</b> ${esc(q.trap)}</p>` : ''}${srcList(q.src)}
+        ${qStem(q)}<p><b>정답</b> ${esc(q.type === 'mc' ? q.options[q.answer] : q.type === 'ox' ? q.answer : q.answer[0])}</p><p>${esc(q.why)}</p>${q.trap ? `<p class="trap-line"><b>함정</b> ${esc(q.trap)}</p>` : ''}${srcList(q.src)}
         <button class="btn tiny" data-act="note-del" data-kind="K" data-id="${id}">지우기</button></details>`; }).join('')}` : '<p class="muted">아직 없다.</p>'}
       <h2>활용평가 <span class="muted">${tIds.length}문항</span></h2>
       ${tIds.length ? tIds.filter((id) => tq[id]).map((id) => { const { q, t } = tq[id]; return `<details class="review bad"><summary><span class="badge bad">${wt[id]}회</span> ${esc(t.title)} · ${esc(q.prompt)}</summary>

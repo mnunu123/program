@@ -974,13 +974,23 @@ def task3():
                 young += 1
 
     # 파일 만들기 -------------------------------------------------------
+    # 메모 열은 뺀다(쉼표가 든 메모가 CSV 열을 깨뜨리고, 영수증 9개를 한도의 절반 안에 넣기 위해). 메모 문자열은 난수 순서를 지키려고 생성만 한다.
+    # 회원명단의 입사일·근무지·내선은 별도 난수로 만든 참고 열이라 정답에 영향이 없다.
+    # 입사일은 가입일과 헷갈리게 하는 함정이다(규정의 30일은 동호회 가입일 기준).
+    R2 = random.Random(30331)
+    sites = ["이천 본사", "이천 M16", "청주 M15", "분당 R&D센터", "용인 클러스터"]
+    extra = {}
+    for c in clubs:
+        for m in data[c]["members"]:
+            hire = max(dt.date(2006, 1, 2), m["joined"] - dt.timedelta(days=R2.randint(30, 4000)))
+            extra[(c, m["id"])] = (hire.isoformat(), R2.choice(sites), f"{R2.randint(2000, 8999)}")
     files = []
     for c in clubs:
         rec_rows = sorted(data[c]["receipts"], key=lambda r: (r["date"], r["no"]))
-        f_rec = csv_text(["receipt_no", "use_date", "member_id", "가맹점", "품목", "category", "amount", "메모"],
-                         [(r["no"], r["date"].isoformat(), r["mid"], r["store"], r["item"], r["cat"], r["amount"], r["memo"]) for r in rec_rows])
-        f_mem = csv_text(["member_id", "이름", "소속", "직급", "재직상태", "퇴사일"],
-                         [(m["id"], m["name"], m["dept"], m["pos"], m["status"], m["leave"].isoformat() if m["leave"] else "") for m in data[c]["members"]])
+        f_rec = csv_text(["receipt_no", "use_date", "member_id", "가맹점", "품목", "category", "amount"],
+                         [(r["no"], r["date"].isoformat(), r["mid"], r["store"], r["item"], r["cat"], r["amount"]) for r in rec_rows])
+        f_mem = csv_text(["member_id", "이름", "소속", "직급", "재직상태", "퇴사일", "입사일", "근무지", "내선"],
+                         [(m["id"], m["name"], m["dept"], m["pos"], m["status"], m["leave"].isoformat() if m["leave"] else "", *extra[(c, m["id"])]) for m in data[c]["members"]])
         f_join = csv_text(["member_id", "동호회", "가입일"],
                           [(m["id"], c, m["joined"].isoformat()) for m in data[c]["members"]])
         files.append({"name": f"{c}/영수증.csv", "kind": "csv", "text": f_rec})
@@ -1127,7 +1137,7 @@ def task3():
             "n": 2, "title": "영수증 9개만 붙여 전체 대조",
             "select": [1, 2, 3, 4], "attach": rec_files,
             "prompt": t3_turn2,
-            "why": f"영수증 파일 9개만 합치면 {rec_tok:,}토큰이라 한 번에 들어간다. 중복 번호처럼 동호회 사이에 걸친 조건은 여기서만 잡을 수 있다. 회원명단·가입일이 필요 없는 규칙만 묻는다.",
+            "why": f"영수증 파일 9개만 합치면 {rec_tok:,}토큰(한도의 {rec_tok / 200:.0f}%)이라 절반 안에 들어간다. 중복 번호처럼 동호회 사이에 걸친 조건은 여기서만 잡을 수 있다. 회원명단·가입일이 필요 없는 규칙만 묻는다.",
             "expect": [
                 {"caption": "① 중복 청구", "headers": ["receipt_no", "나온 곳"], "rows": t3_dup_rows},
                 {"caption": "② 주류·상품권", "headers": ["receipt_no", "동호회", "category"], "rows": t3_cat_rows},
@@ -1147,21 +1157,22 @@ def task3():
                     f"{batch_tok[bi]:,}토큰이다. 가입일은 이름이 아니라 member_id로 연결하게 했다."),
             "expect": [{"caption": "동호회별 기대 결과", "headers": ["동호회", "전액 불인정(사유)", "일부 인정", "인정 합계", "지급액"], "rows": [club_row(c) for c in b]}],
             "checks": ["가입일 경계: 사진 동호회에 정확히 30일(인정)과 29일(불인정)이 한 건씩 있다." if "사진" in b else "인정 합계와 지급액을 표에서 직접 더해 본다.",
+                       "30일 규칙에 가입일.csv의 가입일을 썼는지 본다. 회원명단의 입사일을 쓰면 30일 미만 위반이 하나도 안 잡힌다.",
                        "등산은 인정 합계가 30만 원을 넘어 지급액이 300,000원이어야 한다." if "등산" in b else "한도를 넘는 동호회가 없어야 한다. 넘는다면 건당 한도를 6만 원으로 썼는지 의심한다."],
         })
     all_bad = sorted(set(no for c in clubs for no in detail[c][0]))
     assert all_bad == disallowed
     paid_rows = [[c, f"{detail[c][2]:,}", f"{detail[c][3]:,}"] for c in clubs] + [["합계", "", f"{total_paid:,}"]]
     walk = {
-        "goal": f"파일 29개 합계 약 {total_tokens:,}토큰이라 한 번에 붙일 수 없다. 기준 1회 → 영수증 전체 대조 1회 → 동호회 묶음 3회로 나누고, 마지막 취합은 손으로 한다. AI는 5회 쓴다.",
+        "goal": f"파일 29개 합계 약 {total_tokens:,}토큰이라 한 번에 붙일 수 없다. 한도 안이라도 꽉 채우면 내장 AI가 틀리기 쉬우니(10/17 후기), 회차마다 절반 이하로 맞춘다. 기준 1회 → 영수증 전체 대조 1회 → 동호회 묶음 3회 → 손으로 취합. AI는 5회 쓴다.",
         "reading": [
             {"q": "1번", "need": "전액 불인정 영수증 번호 전체 (오름차순, 중복 번호는 한 번)", "src": "영수증·회원명단·가입일 + 규정 2~4·6조"},
             {"q": "2번", "need": "가입 30일 미만 청구 건수 (다른 사유와 겹쳐도 포함)", "src": "영수증 use_date, 가입일 + 규정 3조"},
             {"q": "3번", "need": "인정 합계가 30만 원을 넘는 동호회 (건당 5만 원 적용)", "src": "영수증 amount + 규정 5·7·8조"},
             {"q": "4번", "need": "동호회별 지급액(한도 적용) 합계", "src": "3번 계산 결과"},
         ],
-        "plan": (f"1회차 규정+공고(614토큰) → 2회차 영수증.csv 9개({rec_tok:,}토큰) → 3~5회차 동호회 3곳씩 "
-                 f"({', '.join(f'{t:,}' for t in batch_tok)}토큰) → 손으로 취합. 남는 5회는 어긋난 동호회만 좁혀서 다시 묻는 데 쓴다."),
+        "plan": (f"1회차 규정+공고({tok['정산규정.md'] + tok['공고문.md']:,}토큰) → 2회차 영수증.csv 9개({rec_tok:,}토큰, 한도의 {rec_tok / 200:.0f}%) → 3~5회차 동호회 3곳씩 "
+                 f"({', '.join(f'{t:,}' for t in batch_tok)}토큰) → 손으로 취합. 모든 회차가 한도의 절반(10,000토큰) 안이다. 남는 5회는 어긋난 동호회만 좁혀서 다시 묻는 데 쓴다."),
         "batches": [{"label": f"묶음 {i + 1}", "clubs": b, "tokens": batch_tok[i]} for i, b in enumerate(batches)],
         "turns": turns3,
         "manual": {
@@ -1569,8 +1580,266 @@ def task4():
     return task
 
 
+# ---------------------------------------------------------------------------
+# 과제 5. 웨이퍼 출하 전 최종 검사 불량 판정 (데이터는 tools/task5.py)
+# ---------------------------------------------------------------------------
+
+def task5():
+    import task5 as T5
+    d = T5.build(csv_text)
+    f2 = d["f2"]
+    KEY, res, files = d["KEY"], d["res"], d["files"]
+    tok = {f["name"]: est_tokens(f["text"]) for f in files}
+    total_tokens = sum(tok.values())
+    lid = lambda k: KEY[k]["id"]
+
+    # 재측정: 이번 주 HBM-D7만, 마지막 값
+    last = {}
+    for lot_id, w, prod, item, before, after, t, why in sorted(d["remeasure"], key=lambda r: r[6]):
+        if prod == "HBM-D7" and t.date() >= dt.date(2026, 10, 12):
+            last[(lot_id, w, item)] = (after, t)
+    def fv(item, v):
+        return str(v) if item == "PC" else f2(v)
+    day_of = {L["id"]: L["day"] for L in d["lots"]}
+    rem_rows = [[lot_id, w, item, fv(item, v), t.strftime("%m/%d %H:%M")] for (lot_id, w, item), (v, t) in sorted(last.items(), key=lambda x: x[1][1])]
+
+    def rem_entries(days):
+        return ", ".join(f"{lot_id} {w} {item}={fv(item, v)}" for (lot_id, w, item), (v, t) in sorted(last.items()) if day_of.get(lot_id) in days)
+
+    # 묶음별 기대 결과
+    batches = [(12, 13), (14, 15), (16,)]
+    def rows_of(day):
+        txt = next(f["text"] for f in files if f["name"] == f"검사결과_10{day}.csv")
+        lines = txt.strip().split("\n")[1:]
+        hbm = [l for l in lines if ",HBM-D7," in l]
+        return len(hbm), len({l.split(",")[0] for l in hbm}), len(lines) - len(hbm)
+
+    def badw_rows(days):
+        out = []
+        for lot_id, r in sorted(res.items()):
+            L = r["lot"]
+            if L["day"] not in days:
+                continue
+            for x, reasons, v in r["bad"]:
+                parts = []
+                for it in reasons:
+                    k = {"THK": "thk", "PC": "pc", "CD": "cd"}[it]
+                    raw, used = x[k], v[k]
+                    raw_s = str(raw) if k == "pc" else f2(raw)
+                    used_s = str(used) if k == "pc" else f2(used)
+                    parts.append(f"{it} {raw_s}" + (f"→{used_s}" if raw != used else ""))
+                out.append([lot_id, x["w"], L["tool"], x["t"].strftime("%m/%d %H:%M"), ", ".join(parts)])
+        return out
+
+    def hold_rows(days):
+        return [[lot_id, f"{len(r['bad'])}장"] for lot_id, r in sorted(res.items()) if r["lot"]["day"] in days and r["hold"]]
+
+    # 판정이 바뀌는 로트 (보정·재측정)
+    def changed_rows(days):
+        rows = []
+        for k, cause, before, after in [
+            ("A", "MT-03 보정 (THK 52.40→51.80)", "불량", "합격"),
+            ("A2", "MT-03 보정 (THK 52.25→51.65)", "불량", "합격"),
+            ("B", "MT-03 보정 (THK 48.50→47.90)", "합격", "불량"),
+            ("F", "재측정 (PC 23→17)", "불량", "합격"),
+            ("K", "재측정 2회 (PC 22→21→19, 마지막 값)", "불량", "합격"),
+            ("G", "재측정 (THK 51.90→52.10)", "합격", "불량"),
+        ]:
+            if KEY[k]["day"] in days:
+                rows.append([lid(k), cause, f"{before} → {after}"])
+        return rows
+
+    rules_line = ("판정표: HBM-D7만 판정(DDR5-X2 제외). 웨이퍼 불량=THK_nm<48.00 또는 >52.00 / PC>20 / CD_nm<28.20 또는 >29.80, 경계값은 합격. "
+                  "로트 불량=불량 웨이퍼 2장 이상. 보정: MT-03이 10/13 06:00~10/14 18:00(양 끝 포함)에 잰 THK_nm만 0.60 빼고 판정. ")
+
+    def batch_prompt(days):
+        names = "·".join(f"검사결과_10{x}.csv" for x in days)
+        rem = rem_entries(days)
+        return (rules_line + (f"재측정(그 항목만 교체): {rem}. " if rem else "") + "비고란은 판정에 쓰지 마.\n"
+                f"첨부한 {names}에 적용해서 알려줘. ①파일별 HBM-D7 행 수와 로트 수 ②불량 웨이퍼 전부: lot_id, wafer, tool, measured_at, 걸린 항목, 원래 값→판정에 쓴 값 "
+                "③불량 웨이퍼 2장 이상인 로트 ④보정이나 재측정 때문에 판정이 바뀐 로트와 바뀐 방향. 생략하지 말고 모르면 '확인 필요'로 적어.")
+
+    t1_prompt = (
+        "첨부 문서 4개로 HBM-D7 판정표를 12줄 이내로 만들어줘. 다음 질문마다 내가 직접 붙여 넣을 거라 짧게.\n"
+        "①웨이퍼 판정 조건(항목별 범위, 경계값 처리) ②로트 판정 조건 ③보정 대상 장비·기간·항목·보정량(기간 양 끝 포함 여부) "
+        "④재측정: HBM-D7이고 10/12~10/16 측정분만 '로트 웨이퍼 항목=판정에 쓸 값' 한 줄씩, 여러 번이면 마지막 값 ⑤특채 승인 로트와 반려 로트.\n"
+        "각 줄에 근거 조항을 붙이고, 문서에 없는 기준은 만들지 마."
+    )
+    rule_rows = [
+        ["대상", "HBM-D7, 측정일 10/12~10/16 (DDR5-X2 제외)", "기준 v3 제1조"],
+        ["웨이퍼", "THK 48.00~52.00 / PC 20 이하 / CD 28.20~29.80, 경계값 합격, 하나라도 벗어나면 불량", "제2조"],
+        ["로트", "불량 웨이퍼 2장 이상 → 불량(HOLD)", "제3조"],
+        ["재측정", "그 항목만 교체, 여러 번이면 마지막 값", "제4조"],
+        ["보정", "MT-03, 10/13 06:00~10/14 18:00 (양 끝 포함), THK_nm − 0.60", "보정 공지"],
+        ["특채", f"승인 {lid('G')}, {lid('X')} / 반려 {lid('H')} (DDR5 로트는 대상 아님)", "특채 메모, 제6조"],
+        ["비고란", "판정에 쓰지 않음", "제7조"],
+    ]
+    turns = [{
+        "n": 1, "title": "기준 문서 4개로 판정표 만들기 (메타프롬프트)",
+        "select": [1, 2, 3, 4],
+        "attach": ["판정기준_v3.md", "MT-03_보정공지.md", "재측정_기록.csv", "특채_승인메모.md"],
+        "prompt": t1_prompt,
+        "why": "데이터를 붙이기 전에 판정 규칙부터 고정한다. 폐기된 v2와 회의록은 붙이지 않는다(파티클 25개 같은 틀린 기준이 섞인다). 판정표는 다음 질문마다 직접 쳐 넣을 거라 짧게 받는다.",
+        "expect": [
+            {"caption": "기대 판정표", "headers": ["항목", "내용", "근거"], "rows": rule_rows},
+            {"caption": "재측정 (이번 주 HBM-D7, 판정에 쓸 값)", "headers": ["lot_id", "wafer", "항목", "판정에 쓸 값", "재측정 시각"], "rows": rem_rows},
+        ],
+        "checks": [
+            f"재측정 목록이 {len(rem_rows)}줄인지 본다. DDR5-X2 기록과 10/9(지난주) 기록이 섞이면 빼라고 다시 말한다.",
+            f"{lid('K')} 로트는 PC를 두 번 재측정했다. 마지막 값 19를 써야 한다. 21을 쓰면 로트 판정이 바뀐다.",
+            "보정 기간이 ‘시작과 끝 시각 포함’으로 정리됐는지 본다. 10/13 06:00 정각 측정이 하나 있다.",
+            "파티클 기준이 25개로 나오면 v2나 회의록 내용이 섞인 것이다. v3는 20개 이하.",
+        ],
+    }]
+    for bi, days in enumerate(batches):
+        fnames = [f"검사결과_10{x}.csv" for x in days]
+        cnt_rows = []
+        for x in days:
+            n_rows, n_lots, n_ddr = rows_of(x)
+            cnt_rows.append([f"검사결과_10{x}.csv", f"{n_rows}행", f"{n_lots}로트", f"DDR5-X2 {n_ddr}행 제외"])
+        checks = {
+            0: [f"{lid('E')}는 10/13 06:00 정각에 잰 THK 52.55가 보정 대상(시작 시각 포함)이라 51.95로 합격이다. 로트는 다른 웨이퍼 2장 때문에 어차피 불량.",
+                f"{lid('D')}는 MT-02 장비라 보정하지 않는다. THK 52.20 그대로 불량 → 로트 불량.",
+                f"{lid('A')}는 보정하면 THK 51.80으로 합격이라 로트 합격이다. 보정을 빠뜨리면 불량으로 나온다.",
+                f"{lid('F')}(PC 23→17), {lid('K')}(PC 마지막 19)는 재측정 반영 후 불량 웨이퍼 1장 → 로트 합격.",
+                f"경계값 웨이퍼는 합격이다: {lid('S1')} THK 52.00, {lid('S2')} CD 28.20, {lid('S3')} PC 20, {lid('S4')} CD 29.80. 이걸 불량으로 세면 로트 4개가 불량으로 바뀐다."],
+            1: [f"{lid('C')}는 10/14 18:30 측정이라 보정 기간(18:00까지) 밖이다. THK 52.30 그대로 불량 → 로트 불량.",
+                f"{lid('B')}는 보정하면 THK 47.90으로 오히려 불량이 된다 → 로트 불량. {lid('A2')}는 보정하면 합격 → 로트 합격.",
+                f"{lid('M')}는 10/15 측정이라 MT-03이어도 보정하지 않는다. 날짜를 안 보고 MT-03 전체를 보정하면 합격으로 잘못 나온다.",
+                f"{lid('G')}는 THK 재측정값 52.10이 불량 → 로트 불량(특채 승인 로트). {lid('H')}는 CD 재측정값 29.85도 불량.",
+                f"{lid('S5')}의 THK 48.00은 경계값이라 합격, 47.99는 불량."],
+            2: [f"{lid('I')}는 THK만 재측정(50.20 합격)했다. 같은 웨이퍼의 CD 28.05는 그대로 불량이라 이 웨이퍼는 여전히 불량 → 로트 불량.",
+                f"{lid('S9')}의 비고 ‘스크래치 의심(육안)’은 판정에 쓰지 않는다(제7조).",
+                f"{lid('X')}는 불량 웨이퍼가 없다. 특채 메모에 이름이 있어도 합격 로트다."],
+        }[bi]
+        turns.append({
+            "n": 2 + bi, "title": f"묶음 {bi + 1}: {' + '.join(f'10/{x}' for x in days)} 검사결과",
+            "select": [1, 2, 4] if bi < 2 else [1, 2, 4],
+            "attach": fnames,
+            "prompt": batch_prompt(days),
+            "why": (f"일자 파일 {'2개' if len(days) == 2 else '1개'}({sum(tok[n] for n in fnames):,}토큰, 한도의 {sum(tok[n] for n in fnames) / 200:.0f}%)만 붙인다. "
+                    "판정표와 이 날짜에 해당하는 재측정 값만 직접 적었다. 결과를 표로 받아야 다음 단계에서 손으로 합칠 수 있다. 3번 문항은 계산만 하면 되니 고르지 않는다."),
+            "expect": [
+                {"caption": "① 행 수", "headers": ["파일", "HBM-D7 행", "로트", "비고"], "rows": cnt_rows},
+                {"caption": "② 불량 웨이퍼", "headers": ["lot_id", "wafer", "tool", "measured_at", "걸린 항목 (원래 값→판정 값)"], "rows": badw_rows(days)},
+                {"caption": "③ 불량 로트", "headers": ["lot_id", "불량 웨이퍼"], "rows": hold_rows(days)},
+                {"caption": "④ 판정이 바뀐 로트", "headers": ["lot_id", "원인", "보정·재측정 전 → 후"], "rows": changed_rows(days)},
+            ],
+            "checks": checks,
+        })
+
+    per_batch = []
+    for bi, days in enumerate(batches):
+        hr = hold_rows(days)
+        per_batch.append([f"묶음 {bi + 1}", ", ".join(r[0] for r in hr), f"{len(hr)}개", f"{len(badw_rows(days))}장"])
+    per_batch.append(["합계", "", f"{len(d['hold'])}개", f"{d['n_badw']}장"])
+    n_lots = d["n_lots"]
+    no_ship = d["no_ship"]
+    ratio = round_half_up(d["ship_ratio"], 1)
+
+    walk = {
+        "goal": (f"첨부 12개, 합계 약 {total_tokens:,}토큰이라 한 번에 못 붙인다. 붙일 수 있는 만큼 채우면 내장 AI가 헷갈린다(10/17 후기). "
+                 "기준 문서로 판정표를 먼저 만들고(1회), 일자 파일을 2개씩 나눠 판정하고(3회), 합계는 손으로 낸다. 폐기 기준서·회의록·지난주 파일은 쓰지 않는다."),
+        "reading": [
+            {"q": "1번", "need": "이번 주 HBM-D7 불량(HOLD) 로트 수, 특채 로트 포함", "src": "검사결과 10/12~16 + 기준 v3 제2·3조 + 보정·재측정"},
+            {"q": "2번", "need": "보정을 했을 때와 안 했을 때 판정이 달라지는 로트", "src": "MT-03 보정 공지 + 해당 기간 MT-03 행"},
+            {"q": "3번", "need": "(전체 로트 − 출하 불가 로트) ÷ 전체 로트, 출하 불가 = 불량 − 특채 승인", "src": "1번 결과 + 특채 메모 (손 계산)"},
+            {"q": "4번", "need": "규격을 벗어난 웨이퍼 수 (로트 판정과 무관)", "src": "묶음별 ② 표 합계"},
+        ],
+        "plan": (f"1회차 기준 4개({sum(tok[n] for n in turns[0]['attach']):,}토큰) → 2회차 10/12·10/13({sum(tok[n] for n in turns[1]['attach']):,}) → "
+                 f"3회차 10/14·10/15({sum(tok[n] for n in turns[2]['attach']):,}) → 4회차 10/16({sum(tok[n] for n in turns[3]['attach']):,}) → 손 취합. "
+                 "모든 회차가 한도의 절반 이하. 남는 6회는 어긋난 로트만 좁혀 다시 묻는 데 쓴다. 붙이지 않는 파일: 판정기준_v2.md(폐기), 주간회의록_1015.md(결정 아님), 검사결과_1009.csv(기간 밖)."),
+        "turns": turns,
+        "manual": {
+            "title": "5단계: 묶음 결과를 손으로 합치기",
+            "text": (f"묶음별 ③·② 표를 옮겨 적어 더한다. 특채 승인 {lid('G')}는 불량으로 세되 출하 가능, {lid('H')}는 반려라 출하 불가, "
+                     f"{lid('X')}는 원래 합격이다. 출하 불가 = 불량 {len(d['hold'])} − 특채 승인 불량 1 = {len(no_ship)}개."),
+            "tables": [{"caption": "묶음별 불량 로트와 불량 웨이퍼", "headers": ["묶음", "불량 로트", "로트 수", "불량 웨이퍼"], "rows": per_batch}],
+        },
+        "final": [
+            {"q": "1번", "answer": str(len(d["hold"])), "how": "묶음 1~3의 불량 로트 합계 (특채 승인 로트 포함)"},
+            {"q": "2번", "answer": "", "how": f"묶음 ④ 표에서 ‘MT-03 보정’이 원인인 로트만: {', '.join(d['changed'])}"},
+            {"q": "3번", "answer": f"{ratio:.1f}", "how": f"({n_lots} − {len(no_ship)}) ÷ {n_lots} × 100 = {d['ship_ratio']:.3f} → {ratio:.1f}"},
+            {"q": "4번", "answer": str(d["n_badw"]), "how": "묶음별 ② 표의 행 수 합계"},
+        ],
+        "usage": "AI 4회 / 10회. 문항 읽기 3분, 판정표 3분, 묶음 3회 9분(대기 시간에 직전 결과를 손으로 옮겨 적기), 취합·입력 4분.",
+    }
+
+    changed = d["changed"]
+    A, A2, B, C, D, M = (lid(k) for k in ("A", "A2", "B", "C", "D", "M"))
+    opts = [
+        ", ".join(sorted([A, B])),
+        ", ".join(sorted([A, A2, B])),
+        ", ".join(sorted([A, A2, B, C])),
+        ", ".join(sorted([A, A2, B, D])),
+        ", ".join(sorted([A, A2, B, M])),
+    ]
+    assert opts[1] == ", ".join(changed)
+    walk["final"][1]["answer"] = "② " + opts[1]
+    tq1, tq4 = d["trap_q1"], d["trap_q4"]
+
+    task = {
+        "id": "T5",
+        "title": "웨이퍼 출하 검사 불량 판정",
+        "scenario": (
+            "메모리 팹 품질보증팀 엔지니어로서 이번 주(10/12~10/16) HBM-D7 출하 전 최종 검사 결과로 로트별 합격·불량을 확정해 출하 회의에 올려야 한다. "
+            "첨부 자료에는 현재 기준서와 이전 기준서, 장비 보정 공지, 재측정 기록, 특채 메모, 회의록, 일자별 검사 결과가 섞여 있다."
+        ),
+        "cautions": [
+            "판정은 현재 시행 중인 기준서를 따른다.",
+            "파일 전체를 한 번에 첨부할 수 없다. 필요한 파일만 골라 나눠서 처리한다.",
+        ],
+        "files": files,
+        "questions": [
+            {
+                "id": "T5Q1", "type": "short", "unit": "개",
+                "prompt": "이번 주(10/12~10/16) HBM-D7 로트 중 불량(HOLD)으로 판정되는 로트는 몇 개인가? (특채 승인 로트도 판정이 불량이면 포함, 숫자만)",
+                "answer": str(len(d["hold"])), "numeric": True,
+                "why": (f"불량 로트 {len(d['hold'])}개: {', '.join(d['hold'])}. 함정을 밟으면: 보정 안 함 {tq1['보정 안 함']}, MT-03 전 기간 보정 {tq1['MT-03 전 기간 보정']}, "
+                        f"재측정 무시 {tq1['재측정 무시']}, 첫 재측정값 {tq1['첫 재측정값']}, 웨이퍼 통째로 합격 처리 {tq1['웨이퍼 통째 교체']}, 경계값을 불량으로 {tq1['경계값 불량']}, "
+                        f"DDR5 포함 {tq1['DDR5 포함']}, 지난주 파일 포함 {tq1['지난주 포함']}, 폐기된 v2 기준 {tq1['v2 기준']}."),
+                "trap": "보정 기간, 재측정 마지막 값, 경계값, 제품 구분, 기간 밖 파일, 폐기 기준서. 함정이 여섯 겹이다.",
+            },
+            {
+                "id": "T5Q2", "type": "mc",
+                "prompt": "MT-03 보정 공지를 적용했을 때와 적용하지 않았을 때 판정 결과(합격/불량)가 달라지는 로트를 빠짐없이 고른 것은?",
+                "options": opts, "answer": 1,
+                "why": (f"{A}(52.40→51.80)와 {A2}(52.25→51.65)는 보정하면 합격 웨이퍼가 되어 로트 합격으로 바뀌고, {B}(48.50→47.90)는 보정하면 불량 웨이퍼가 늘어 로트 불량으로 바뀐다. "
+                        f"{C}는 18:30 측정이라 기간 밖, {D}는 MT-02, {M}은 10/15 측정이라 보정 대상이 아니다."),
+                "trap": "보정은 장비·기간·항목이 모두 맞을 때만. 보정이 불량을 ‘만들’ 수도 있다(48.50→47.90).",
+            },
+            {
+                "id": "T5Q3", "type": "short", "unit": "%",
+                "prompt": "이번 주 HBM-D7 판정 대상 로트 중 출하 가능한 로트의 비율(%)은? (소수점 둘째 자리에서 반올림해 첫째 자리까지, 숫자만)",
+                "answer": f"{ratio:.1f}", "numeric": True, "decimals": 1,
+                "why": (f"판정 대상 {n_lots}로트 중 출하 불가는 불량 {len(d['hold'])}개에서 특채 승인된 {lid('G')}를 뺀 {len(no_ship)}개. "
+                        f"({n_lots} − {len(no_ship)}) ÷ {n_lots} × 100 = {d['ship_ratio']:.2f} → {ratio:.1f}. 특채를 빼지 않으면 {round_half_up((n_lots - len(d['hold'])) / n_lots * 100, 1):.1f}."),
+                "trap": f"특채 승인 로트 {lid('X')}는 원래 합격이라 아무것도 바뀌지 않는다. 반려된 {lid('H')}는 출하 불가.",
+            },
+            {
+                "id": "T5Q4", "type": "short", "unit": "장",
+                "prompt": "이번 주 HBM-D7에서 규격을 벗어난 불량 웨이퍼는 모두 몇 장인가? (로트 판정과 관계없이, 보정·재측정 반영 후, 숫자만)",
+                "answer": str(d["n_badw"]), "numeric": True,
+                "why": (f"묶음별 불량 웨이퍼를 더하면 {d['n_badw']}장. 경계값을 불량으로 세면 {tq4['경계값 불량']}, 보정 안 하면 {tq4['보정 안 함']}, 보정 기간 양 끝을 빼면 {tq4['기간 양 끝 제외']}, "
+                        f"재측정을 무시하면 {tq4['재측정 무시']}, v2 기준(PC 25개)이면 {tq4['v2 기준']}, DDR5까지 넣으면 {tq4['DDR5 포함']}."),
+                "trap": "로트 판정과 무관하게 ‘웨이퍼’를 센다. 합격 로트 안의 불량 웨이퍼 1장도 포함한다.",
+            },
+        ],
+        "promptExample": t1_prompt,
+        "lessons": [
+            "기준 문서만 먼저 붙여 판정표를 받고(메타프롬프트), 데이터 묶음마다 그 판정표를 직접 붙여 넣는다.",
+            "일자 파일은 2개씩. 한 번에 한도의 절반을 넘기지 않는다.",
+            "판정이 바뀌는 지점(경계값, 보정 기간 양 끝, 재측정 마지막 값, 같은 웨이퍼의 다른 항목)은 행 단위로 받아 직접 확인한다.",
+            "폐기된 기준서, 결정되지 않은 회의록, 기간 밖 파일은 붙이지 않는다. 파일 선택이 곧 검증이다.",
+        ],
+        "walk": walk,
+        "meta": {"hold": d["hold"], "changed": changed, "trap_q1": tq1, "trap_q4": tq4},
+    }
+    return task
+
+
 def main():
-    tasks = [task1(), task2(), task3(), task4()]
+    tasks = [task1(), task2(), task3(), task4(), task5()]
     for t in tasks:
         for f in t["files"]:
             f["tokens"] = est_tokens(f["text"])
@@ -1582,7 +1851,9 @@ def main():
             turn["attachTokens"] = sum(names[n] for n in turn["attach"])
             turn["promptChars"] = len(turn["prompt"])
             assert turn["attachTokens"] <= 20000, (t["id"], turn["n"], turn["attachTokens"])
-            print(f"   walk {t['id']} turn {turn['n']}: prompt {turn['promptChars']}자, attach {turn['attachTokens']:,}토큰")
+            # 10/17 후기: 첨부를 4분의 3쯤 채우면 내장 AI가 틀린 답만 냈다 → 풀이는 회차마다 절반 이하로
+            assert turn["attachTokens"] <= 10000, ("절반 초과", t["id"], turn["n"], turn["attachTokens"])
+            print(f"   walk {t['id']} turn {turn['n']}: prompt {turn['promptChars']}자, attach {turn['attachTokens']:,}토큰 ({turn['attachTokens'] / 200:.0f}%)")
     payload = json.dumps(tasks, ensure_ascii=False, indent=1, default=str)
     OUT.write_text(
         "/* 자동 생성 파일: tools/gen_tasks.py 를 실행해서 만든다. 직접 고치지 말 것. */\n"

@@ -98,4 +98,36 @@ seats = defaultdict(int)
 for t, _ in after: seats[t] += 1
 check("T4Q3", sum(round(price[t][p] * (0.8 if seats[t] >= 10 else 1)) for t, p in after))
 check("T4Q4", ", ".join(t for t in price if seats[t] < 10))
+
+# T5 (파일 텍스트만으로: 검사결과 10/12~16, 재측정 기록, 보정 공지, 특채 메모)
+import re
+T5f = {x["name"]: x["text"] for x in T["T5"]["files"]}
+P5 = lambda x: dt.datetime.strptime(x, "%Y-%m-%d %H:%M")
+h = lambda x: int(round(float(x) * 100))
+rm = {}
+for r in sorted(rows(T5f["재측정_기록.csv"]), key=lambda r: r["재측정_시각"]):
+    if r["product"] != "HBM-D7" or P5(r["재측정_시각"]) < dt.datetime(2026, 10, 12): continue
+    key = {"THK_nm": "THK", "PC": "PC", "CD_nm": "CD"}[r["항목"]]
+    rm[(r["lot_id"], r["wafer"], key)] = int(r["재측정값"]) if key == "PC" else h(r["재측정값"])
+def judge(correct=True):
+    lots = defaultdict(list)
+    for d in (12, 13, 14, 15, 16):
+        for r in rows(T5f[f"검사결과_10{d}.csv"]):
+            if r["product"] != "HBM-D7": continue
+            v = {"THK": h(r["THK_nm"]), "PC": int(r["PC"]), "CD": h(r["CD_nm"])}
+            t = P5(r["measured_at"])
+            if correct and r["tool"] == "MT-03" and dt.datetime(2026, 10, 13, 6, 0) <= t <= dt.datetime(2026, 10, 14, 18, 0): v["THK"] -= 60
+            for k in v:
+                if (r["lot_id"], r["wafer"], k) in rm: v[k] = rm[(r["lot_id"], r["wafer"], k)]
+            bad = not (4800 <= v["THK"] <= 5200) or v["PC"] > 20 or not (2820 <= v["CD"] <= 2980)
+            lots[r["lot_id"]].append(bad)
+    return lots
+L5 = judge(); L5n = judge(False)
+hold5 = sorted(k for k, ws in L5.items() if sum(ws) >= 2)
+check("T5Q1", len(hold5))
+check("T5Q2", ", ".join(sorted(k for k in L5 if (sum(L5[k]) >= 2) != (sum(L5n[k]) >= 2))))
+appr = re.findall(r"- (L\d{4}-\d{4}): [^\n]*특채 승인", T5f["특채_승인메모.md"])
+noship = [k for k in hold5 if k not in appr]
+check("T5Q3", f"{rhu((len(L5) - len(noship)) / len(L5) * 100, 1):.1f}")
+check("T5Q4", sum(sum(ws) for ws in L5.values()))
 print("ALL OK" if ok else "MISMATCH")
