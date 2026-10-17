@@ -19,7 +19,7 @@
 
   const DEFAULTS = {
     provider: 'none', apiKey: '', model: '',
-    turns: 10, cooldown: 30, attachCap: 20000, charCap: 1000,
+    turns: 20, turnsSession: 80, fileCap: 5, cooldown: 30, attachCap: 20000, charCap: 1000,
     clearAttach: true, keepHistory: true, copyLock: true, noTimer: false
   };
   const S = () => Object.assign({}, DEFAULTS, store.get('settings', {}));
@@ -121,9 +121,11 @@
   function viewHome() {
     const attempts = store.get('attempts', []);
     const todo = [
-      ['d1', '내일 실전 플랜 읽기 (10분, 입실 마감 꼭 확인)', 'dday'],
+      ['d0', '안내 메일에서 내 회차 입실 시작·마감 시각 확인, 알람 맞추기', 'dday'],
+      ['d1', '내일 실전 플랜 읽기 (커뮤니티 후기 정리 포함)', 'dday'],
+      ['d1b', '휴대폰 거치대·충전기, 방해금지·재난문자 끄기, 시계·이어폰 빼기', 'checklist'],
       ['d2', '지식평가 실전형 세트 C 30분 → 보기별 해설', 'mock-knowledge'],
-      ['d3', '과제 5 불량 판정 22분 → 회차별 풀이와 비교', 'mock-task'],
+      ['d3', '과제 5 불량 판정 22분 (메모장에 판정표 두고 매 질문 붙이기) → 회차별 풀이와 비교', 'mock-task'],
       ['d4', '치트시트 새 용어 (보안·사내 환경·고객 응대·RAG·VOC)', 'cheat'],
       ['d5', '실전형 세트 D 30분 (시간 남으면)', 'mock-knowledge'],
       ['t1', '시험 정보 읽기 (5분)', 'info'],
@@ -143,13 +145,13 @@
   <p class="eyebrow">SK하이닉스 AI 해커톤 2026 · 1차 예선</p>
   <h1>프로그래머스 AI 역량평가<br>실전 대비 노트</h1>
   <p class="lede">1차 예선은 10/17(토)~18(일) 중 하루, 온라인. 1교시 지식(전부 객관식), 2교시 AI 활용 과제. 10/17 응시 후기를 반영해 1교시 실전 형식(ㄱㄴㄷㄹ 고르기·순서 배열·빈칸)과 2교시 불량 판정 과제를 추가했다.</p>
-  <a class="dday-banner" href="#dday"><b>내일 시험이면 여기부터</b><span>쉬는 시간 10분, 2교시 입실 마감을 넘기면 응시 불가. 후기로 확인된 것과 오늘 밤 공부 순서</span></a>
+  <a class="dday-banner" href="#dday"><b>내일 시험이면 여기부터</b><span>10/17엔 1교시 입실이 시작 40분 전에 닫혀 못 본 사람이 많았다. 입실 시각, 2교시 실제 제약(파일 5개, 80회, 기억 없음), 오늘 밤 공부 순서</span></a>
   <div class="gauge-row">
     <div class="gauge"><span class="g-num">1,000<small>자</small></span><span class="g-lab">프롬프트 입력 한도</span></div>
-    <div class="gauge"><span class="g-num">20,000<small>토큰</small></span><span class="g-lab">질문 1회 첨부 한도</span></div>
-    <div class="gauge"><span class="g-num">절반<small>까지</small></span><span class="g-lab">실제로 채울 첨부량 (후기)</span></div>
-    <div class="gauge"><span class="g-num">30<small>초</small></span><span class="g-lab">질문 후 대기 (후기 확인)</span></div>
-    <div class="gauge"><span class="g-num">10<small>분</small></span><span class="g-lab">교시 사이 쉬는 시간</span></div>
+    <div class="gauge"><span class="g-num">5<small>개</small></span><span class="g-lab">질문 1회 첨부 파일 (2만 토큰)</span></div>
+    <div class="gauge"><span class="g-num">80<small>회</small></span><span class="g-lab">2교시 전체 AI 질문</span></div>
+    <div class="gauge"><span class="g-num">30<small>초</small></span><span class="g-lab">질문 후 대기</span></div>
+    <div class="gauge"><span class="g-num">40<small>분 전</small></span><span class="g-lab">1교시 입실 마감 (10/17 사례)</span></div>
   </div>
   <div class="cta-row">
     <button class="btn primary" data-act="start-k" data-set="C">실전형 세트 C · 20문항 30분</button>
@@ -406,7 +408,7 @@
   // ---------------------------------------------------------------- 활용평가 메뉴
   function viewTMenu() {
     return page(`<h1>활용평가 모의고사</h1>
-      <p class="lede">2교시(16문항 90분 추정)를 재현한다. 과제당 4문항. 화면은 프로그래머스 체험판처럼 지문·파일 목록·문항, 오른쪽 AI 어시스트로 구성했다. AI 어시스트 제약(1,000자, 첨부 20,000토큰, 10회, 30초 대기)을 그대로 건다. 10/17 후기: 시간이 매우 부족했고, 내장 AI(후기상 GPT-5.2)는 첨부를 4분의 3쯤 채우면 틀린 답을 냈다. <b>첨부는 절반 이하</b>로 나눠 보내는 연습을 한다.</p>
+      <p class="lede">2교시(16문항 90분 추정)를 재현한다. 과제당 4문항. 화면은 프로그래머스 체험판처럼 지문·파일 목록·문항, 오른쪽 AI 어시스트로 구성했다. AI 어시스트 제약(1,000자, 첨부 20,000토큰·파일 5개, 30초 대기, 질문 횟수는 세션 전체 80회 공유)을 그대로 건다. 오른쪽 AI 패널의 ‘메모’는 실제 시험의 메모장 역할이다. 10/17 후기: 시간이 매우 부족했고, 내장 AI(후기상 GPT-5.2)는 첨부를 4분의 3쯤 채우면 틀린 답을 냈다. <b>첨부는 절반 이하</b>로 나눠 보내는 연습을 한다.</p>
       <div class="menu-grid">
         <button class="menu-card wide" data-act="start-t" data-tasks="T1,T2,T5,T4" data-min="90"><b>실전 세션 (불량 판정 포함)</b><span>과제 4개 · 16문항 · 90분 · 3번째가 불량 판정</span></button>
         <button class="menu-card wide" data-act="start-t" data-tasks="T1,T2,T3,T4" data-min="90"><b>기존 세션</b><span>과제 4개 · 16문항 · 90분</span></button>
@@ -423,11 +425,16 @@
     return `<b>${esc({ openai: 'OpenAI', anthropic: 'Anthropic', gemini: 'Google Gemini' }[s.provider])} · ${esc(s.model || '모델 미입력')}</b>로 연결되어 있다. 키는 이 브라우저에만 저장된다. 실제 시험의 모델과 다를 수 있다.`;
   }
 
+  // 질문 횟수: 과제 하나 연습이면 과제당 횟수, 여러 과제 세션이면 세션 전체가 한 통을 나눠 쓴다(10/17 후기: 2교시 전체 80회)
+  const P = (ai) => ai.pool || ai;
+
   function startTask(ids, minutes) {
     const s = S();
     const tasks = ids.filter((id) => TMAP[id]);
     const ai = {};
-    tasks.forEach((id) => { ai[id] = { left: s.turns, msgs: [], attach: [], sel: [], cool: 0, draft: '', busy: false }; });
+    const total = tasks.length > 1 ? s.turnsSession : s.turns;
+    const pool = { left: total, total };
+    tasks.forEach((id) => { ai[id] = { pool, msgs: [], attach: [], sel: [], cool: 0, draft: '', busy: false }; });
     const firstFile = {};
     tasks.forEach((id) => { firstFile[id] = TMAP[id].files[0].name; });
     state.exam = {
@@ -473,7 +480,7 @@
       <div class="task-clock" id="taskclock"></div>
     </nav>
     <section class="passage" id="passage">
-      <div class="p-head"><span class="q-num">${qBase + 1} ~ ${qBase + 4}</span><span class="muted">다음을 읽고 문제를 풀어주세요.</span><span class="ai-left-mini">AI 어시스트 남은 횟수 <b>${ai.left} / ${s.turns}회</b></span></div>
+      <div class="p-head"><span class="q-num">${qBase + 1} ~ ${qBase + 4}</span><span class="muted">다음을 읽고 문제를 풀어주세요.</span><span class="ai-left-mini">AI 어시스트 남은 횟수 <b>${P(ai).left} / ${P(ai).total}회</b>${ex.tasks.length > 1 ? ' <span class="muted small">(세션 공유)</span>' : ''}</span></div>
       <h2 class="t-title">${esc(t.title)}</h2>
       <p class="${lock}">${esc(t.scenario)}</p>
       <h3>주의사항</h3>
@@ -539,7 +546,7 @@
     const menu = state.exam.menu;
     const mode = s.provider !== 'none' && s.apiKey ? 'live' : 'practice';
     return `
-<div class="ai-head"><b>AI 어시스트</b><span class="ai-left${ai.left <= 2 ? ' low' : ''}">${ai.left}회 남음</span></div>
+<div class="ai-head"><b>AI 어시스트</b><span class="ai-left${P(ai).left <= 2 ? ' low' : ''}">${P(ai).left}회 남음</span></div>
 <p class="ai-mode ${mode}">${mode === 'live' ? `연결됨: ${esc(s.model || '모델 미입력')}` : '연습 모드: 응답 대신 프롬프트 점검'}</p>
 <div class="ai-log" id="ailog" aria-live="polite">
   ${ai.msgs.length ? '' : `<p class="ai-empty">${qBase + 1}-${qBase + 4}번 문제에 대해 질문해보세요.<br><span class="small">‘문제’로 문항을 고르고, 파일 목록에서 ‘AI 질문에 추가’로 자료를 붙인다.</span></p>`}
@@ -554,18 +561,20 @@
         <div class="pop-foot"><button class="linkish small" data-act="sel-all">전체 선택</button><button class="linkish small" data-act="menu" data-m="">닫기</button></div></div>` : ''}
     </div>
     <div class="pop-wrap">
-      <button class="chip" data-act="menu" data-m="a" aria-expanded="${menu === 'a'}">첨부 파일 <b>${ai.attach.length}</b></button>
+      <button class="chip" data-act="menu" data-m="a" aria-expanded="${menu === 'a'}">첨부 파일 <b>${ai.attach.length}</b>/${s.fileCap}</button>
       ${menu === 'a' ? `<div class="pop wide" role="menu"><div class="pop-title"><b>첨부 파일</b><span class="num ${attTok > s.attachCap ? 'over' : ''}">${fmt(attTok)}/${fmt(s.attachCap)} 토큰</span><button class="linkish small" data-act="att-clear">전체 삭제</button></div>
         ${ai.attach.length ? ai.attach.map((n) => `<div class="pop-item"><span>${esc(n)}</span><span class="num muted">${fmt((t.files.find((f) => f.name === n) || {}).tokens || 0)}</span><button class="linkish small" data-act="t-attach" data-f="${esc(n)}">빼기</button></div>`).join('') : '<p class="muted small">파일 목록에서 추가한 파일이 여기에 표시됩니다.</p>'}
         <div class="pop-foot"><button class="linkish small" data-act="menu" data-m="">닫기</button></div></div>` : ''}
     </div>
+    <button class="chip${state.exam.memoOpen ? ' on' : ''}" data-act="memo-toggle" aria-expanded="${state.exam.memoOpen ? 'true' : 'false'}">메모</button>
     <span class="tok num${attTok > s.attachCap ? ' over' : attTok > s.attachCap * 0.75 ? ' hot' : attTok > s.attachCap * 0.5 ? ' warn' : ''}">${fmt(attTok)}/${fmt(s.attachCap)}</span>
   </div>
+  ${state.exam.memoOpen ? `<div class="memo-pane"><label class="sr-only" for="memo">메모</label><textarea id="memo" rows="6" placeholder="실제 시험에도 있는 단순 메모장. AI는 앞 질문의 조건을 기억하지 못하니, 1회차에 받은 판정표를 여기에 적어 두고 매 질문 맨 앞에 붙여 넣는다." data-act="memo-input">${esc((state.exam.memo || {})[t.id] || '')}</textarea><div class="memo-foot"><span class="num muted small" id="memocount">${fmt(((state.exam.memo || {})[t.id] || '').length)}자</span><button class="linkish small" data-act="memo-paste">입력창 맨 앞에 붙이기</button></div></div>` : ''}
   ${attTok > s.attachCap * 0.5 && attTok <= s.attachCap ? `<p class="fill-warn${attTok > s.attachCap * 0.75 ? ' hot' : ''}" role="note">첨부가 한도의 ${Math.round(attTok / s.attachCap * 100)}%다. 10/17 후기: 4분의 3쯤 채우면 내장 AI가 틀린 답만 냈다. 절반 이하로 나눠 보내는 게 안전하다.</p>` : ''}
   <label class="sr-only" for="aiinput">AI에게 보낼 질문</label>
   <textarea id="aiinput" rows="5" placeholder="무엇을 도와드릴까요?" data-act="ai-input">${esc(ai.draft)}</textarea>
   <div class="compose-foot"><span class="count num" id="aicount">${fmt(ai.draft.length)}/${fmt(s.charCap)}</span>
-  <button class="btn primary small" id="aisend" data-act="ai-send"${ai.left <= 0 || ai.busy ? ' disabled' : ''}>보내기</button></div>
+  <button class="btn primary small" id="aisend" data-act="ai-send"${P(ai).left <= 0 || ai.busy ? ' disabled' : ''}>보내기</button></div>
 </div>`;
   }
 
@@ -615,16 +624,17 @@
     const prompt = ai.draft.trim();
     if (!prompt) { toast('질문을 입력하세요.'); return; }
     if (prompt.length > s.charCap) { toast(`입력창은 ${fmt(s.charCap)}자까지다. 지금 ${fmt(prompt.length)}자.`); return; }
-    if (ai.left <= 0) { toast('남은 횟수가 없다.'); return; }
+    if (P(ai).left <= 0) { toast('남은 횟수가 없다.'); return; }
     if (Date.now() < ai.cool) { toast('응답 대기 시간이 끝나야 보낼 수 있다.'); return; }
     const files = ai.attach.slice();
     const tokens = files.reduce((a, n) => a + ((ctxObj.files.find((f) => f.name === n) || {}).tokens || 0), 0);
     if (tokens > s.attachCap) { toast(`첨부 합계 ${fmt(tokens)}토큰이 한도 ${fmt(s.attachCap)}를 넘는다.`); return; }
+    if (files.length > s.fileCap) { toast(`질문 1회 첨부는 파일 ${s.fileCap}개까지다. 지금 ${files.length}개.`); return; }
     const sel = (ai.sel || []).slice();
     const selLabels = sel.map((qid) => String(ctxObj.questions ? ctxObj.questions.findIndex((q) => q.id === qid) + 1 + (opts.qBase || 0) : qid));
     const full = buildContext(ctxObj, ai, prompt, sel, files);
     ai.msgs.push({ role: 'user', text: prompt, sel: selLabels, files, tokens, checks: promptChecks(prompt, sel.length, files.length, opts.essay), full });
-    ai.left -= 1;
+    P(ai).left -= 1;
     ai.cool = Date.now() + s.cooldown * 1000;
     ai.draft = '';
     if (s.clearAttach) ai.attach = [];
@@ -660,7 +670,7 @@
       ai.msgs.push({ role: 'ai', text: out || '(빈 응답)' });
     } catch (e) {
       ai.msgs.push({ role: 'sys', html: `AI 호출에 실패했다: ${esc(e.message || String(e))}. 키·모델 이름을 확인하거나, 이 페이지가 외부 호출을 막는 환경(예: claude.ai 미리보기)인지 확인한다. 횟수는 돌려준다.` });
-      ai.left += 1;
+      P(ai).left += 1;
       ai.cool = 0;
     } finally {
       ai.busy = false;
@@ -751,7 +761,7 @@
   <p class="lede">걸린 시간 ${mmss(r.used)}. 과제마다 회차별 풀이(문제 선택, 첨부 파일, 프롬프트 전문, AI가 줘야 할 값)를 붙였다. 내 프롬프트 기록과 나란히 비교해 본다.</p>
   <div class="row"><button class="btn primary" data-act="result-close">목록으로</button><button class="btn" data-act="go-sol" data-tab="task" data-task="${r.tasks[0].t.id}">정답·풀이 가이드에서 보기</button></div>
   ${r.tasks.map((x, ti) => {
-    const used = s.turns - x.ai.left;
+    const used = x.ai.msgs.filter((m) => m.role === 'user').length;
     const userMsgs = x.ai.msgs.filter((m) => m.role === 'user');
     return `
   <section class="result-task">
@@ -827,7 +837,7 @@
         const left = ai.cool - now;
         if (ai.busy) { btn.disabled = true; }
         else if (left > 0) { btn.disabled = true; btn.textContent = `대기 ${Math.ceil(left / 1000)}초`; }
-        else { btn.disabled = ai.left <= 0; btn.textContent = '보내기'; }
+        else { btn.disabled = P(ai).left <= 0; btn.textContent = '보내기'; }
       }
     }
     if (el) {
@@ -967,7 +977,7 @@
       const left = ai.cool - Date.now();
       if (ai.busy) btn.disabled = true;
       else if (left > 0) { btn.disabled = true; btn.textContent = `대기 ${Math.ceil(left / 1000)}초`; }
-      else { btn.disabled = ai.left <= 0; btn.textContent = '보내기'; }
+      else { btn.disabled = P(ai).left <= 0; btn.textContent = '보내기'; }
     }, 500);
   }
 
@@ -1123,7 +1133,9 @@
       <div class="row"><button class="btn" data-act="set-test">연결 확인 (짧은 요청 1회)</button><span id="set-test-out" class="muted small"></span></div>` : ''}
       <h2>시험 환경 흉내</h2>
       <div class="set-grid">
-        <label class="field"><span>과제당 AI 질문 횟수</span><input id="set-turns" type="number" min="1" max="50" value="${s.turns}" data-act="set-num" data-k="turns"></label>
+        <label class="field"><span>과제 하나 연습할 때 AI 질문 횟수</span><input id="set-turns" type="number" min="1" max="80" value="${s.turns}" data-act="set-num" data-k="turns"></label>
+        <label class="field"><span>여러 과제 세션 전체 AI 질문 횟수 (후기: 80)</span><input id="set-turns-s" type="number" min="1" max="200" value="${s.turnsSession}" data-act="set-num" data-k="turnsSession"></label>
+        <label class="field"><span>질문 1회 첨부 파일 수 (후기: 5)</span><input id="set-filecap" type="number" min="1" max="50" value="${s.fileCap}" data-act="set-num" data-k="fileCap"></label>
         <label class="field"><span>질문 후 대기(초)</span><input id="set-cool" type="number" min="0" max="120" value="${s.cooldown}" data-act="set-num" data-k="cooldown"></label>
         <label class="field"><span>질문 1회 첨부 한도(토큰)</span><input id="set-cap" type="number" min="1000" max="200000" step="1000" value="${s.attachCap}" data-act="set-num" data-k="attachCap"></label>
         <label class="field"><span>입력창 글자 수 한도</span><input id="set-char" type="number" min="100" max="10000" step="100" value="${s.charCap}" data-act="set-num" data-k="charCap"></label>
@@ -1191,12 +1203,21 @@
         else {
           const cur = ai.attach.reduce((a, x) => a + (t.files.find((f) => f.name === x) || { tokens: 0 }).tokens, 0);
           const add = (t.files.find((f) => f.name === n) || { tokens: 0 }).tokens;
-          if (cur + add > s.attachCap) ex.err = `첨부 한도를 넘는다: 지금 ${fmt(cur)} + ${fmt(add)} = ${fmt(cur + add)} > ${fmt(s.attachCap)}토큰. 묶음을 나눠서 질문해야 한다.`;
+          if (ai.attach.length >= s.fileCap) ex.err = `질문 1회 첨부는 파일 ${s.fileCap}개까지다(10/17 후기). 파일을 나눠서 질문해야 한다.`;
+          else if (cur + add > s.attachCap) ex.err = `첨부 한도를 넘는다: 지금 ${fmt(cur)} + ${fmt(add)} = ${fmt(cur + add)} > ${fmt(s.attachCap)}토큰. 묶음을 나눠서 질문해야 한다.`;
           else { ai.attach.push(n); ex.err = ''; }
         }
         render(); break;
       }
       case 'att-clear': ex.ai[curTask().id].attach = []; ex.err = ''; render(); break;
+      case 'memo-toggle': ex.memoOpen = !ex.memoOpen; render(); break;
+      case 'memo-paste': {
+        const ai = ex.ai[curTask().id]; const m = ((ex.memo || {})[curTask().id] || '').trim();
+        if (!m) { toast('메모가 비어 있다.'); break; }
+        ai.draft = m + (ai.draft ? '\n' + ai.draft : '');
+        render(); const ta = $('#aiinput'); if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+        break;
+      }
       case 'menu': ex.menu = (el.dataset.m && ex.menu !== el.dataset.m) ? el.dataset.m : null; render(); break;
       case 'sel-all': { const t = curTask(); ex.ai[t.id].sel = t.questions.map((q) => q.id); render(); break; }
       case 't-flag': ex.flags[el.dataset.q] = !ex.flags[el.dataset.q]; render(); break;
@@ -1224,7 +1245,8 @@
         else {
           const cur = ai.attach.reduce((a, x) => a + ((files.find((f) => f.name === x) || {}).tokens || 0), 0);
           const add = (files.find((f) => f.name === n) || {}).tokens || 0;
-          if (cur + add > s.attachCap) toast(`첨부 한도 초과: ${fmt(cur + add)} > ${fmt(s.attachCap)}토큰`); else ai.attach.push(n);
+          if (ai.attach.length >= s.fileCap) toast(`질문 1회 첨부는 파일 ${s.fileCap}개까지다.`);
+          else if (cur + add > s.attachCap) toast(`첨부 한도 초과: ${fmt(cur + add)} > ${fmt(s.attachCap)}토큰`); else ai.attach.push(n);
         }
         render(); break;
       }
@@ -1288,6 +1310,11 @@
         ai.draft = el.value;
         const c = $('#aicount'); const cap = S().charCap;
         if (c) { c.textContent = `${fmt(el.value.length)}/${fmt(cap)}`; c.classList.toggle('over', el.value.length > cap); }
+        break;
+      }
+      case 'memo-input': {
+        ex.memo = ex.memo || {}; ex.memo[curTask().id] = el.value;
+        const c = $('#memocount'); if (c) c.textContent = `${fmt(el.value.length)}자`;
         break;
       }
       case 'essay-text': state.essay.text = el.value; const c = $('#essaycount'); if (c) c.textContent = `${fmt(el.value.length)}자`; saveEssay(); break;

@@ -58,12 +58,12 @@ excl = len(latest) - len(sat)
 check("T2Q4", "유효 문항이 3개 미만이라 만족도 계산에서 빠지는 응답자는 2명이다." if excl == 2 else f"excluded={excl}")
 
 # T3
-clubs = sorted({x["name"].split("/")[0] for x in T["T3"]["files"] if "/" in x["name"]})
+groups = sorted({x["name"].split("_")[1].split(".")[0] for x in T["T3"]["files"] if x["name"].startswith("영수증_")})
 allrec, members, joined = [], {}, {}
-for c in clubs:
-    for r in rows(f("T3", f"{c}/영수증.csv")): r["club"] = c; allrec.append(r)
-    for r in rows(f("T3", f"{c}/회원명단.csv")): members[(c, r["member_id"])] = r
-    for r in rows(f("T3", f"{c}/가입일.csv")): joined[(c, r["member_id"])] = dt.date.fromisoformat(r["가입일"])
+for g in groups:
+    for r in rows(f("T3", f"영수증_{g}.csv")): r["club"] = r["동호회"]; allrec.append(r)
+    for r in rows(f("T3", f"회원명단_{g}.csv")): members[(r["동호회"], r["member_id"])] = r
+    for r in rows(f("T3", f"가입일_{g}.csv")): joined[(r["동호회"], r["member_id"])] = dt.date.fromisoformat(r["가입일"])
 cnt = defaultdict(int)
 for r in allrec: cnt[r["receipt_no"]] += 1
 bad, young, tot = set(), 0, defaultdict(int)

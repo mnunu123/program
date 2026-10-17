@@ -370,7 +370,7 @@ def task1():
             {"q": "3번", "answer": "① CVD-02:A214, CVD-03:A230, ETCH-02:A101", "how": "간격 24시간 이하 3개 조합. 24시간 정각은 포함, 24시간 30분은 제외"},
             {"q": "4번", "answer": f"{q4:.1f}", "how": "CVD-02: (36,000 − 2,040) ÷ 36,000 × 100 = 94.33 → 94.3"},
         ],
-        "usage": "AI 1회(검산이 필요하면 2회) / 10회. 읽기 4분, 프롬프트 3분, 검증 6분, 입력 2분.",
+        "usage": "AI 1회(검산이 필요하면 2회), 2교시 전체 80회 중. 읽기 4분, 프롬프트 3분, 검증 6분, 입력 2분.",
     }
 
     eq_opts = ["ETCH-02", "CVD-02", "CMP-01", "CVD-03", "ETCH-03"]
@@ -698,7 +698,7 @@ def task2():
             {"q": "3번", "answer": f"③ {q3}", "how": "8명 이상 부서 중 최고. 보안(5명)은 제외"},
             {"q": "4번", "answer": "④ 유효 문항 3개 미만 응답자는 2명", "how": "나머지 보기는 인과 단정, 인원 조건 무시, 7을 6으로, 기준 5 반대"},
         ],
-        "usage": "AI 1회(확인까지 2회) / 10회. 읽기 4분, 프롬프트 3분, 검증 7분, 입력 2분.",
+        "usage": "AI 1회(확인까지 2회), 2교시 전체 80회 중. 읽기 4분, 프롬프트 3분, 검증 7분, 입력 2분.",
     }
 
     opts4 = [
@@ -984,18 +984,20 @@ def task3():
         for m in data[c]["members"]:
             hire = max(dt.date(2006, 1, 2), m["joined"] - dt.timedelta(days=R2.randint(30, 4000)))
             extra[(c, m["id"])] = (hire.isoformat(), R2.choice(sites), f"{R2.randint(2000, 8999)}")
+    # 10/17 후기: 질문 1회 첨부는 파일 5개까지 → 동호회 3곳씩 묶은 조별 파일(영수증·회원명단·가입일)로 낸다
     files = []
-    for c in clubs:
-        rec_rows = sorted(data[c]["receipts"], key=lambda r: (r["date"], r["no"]))
-        f_rec = csv_text(["receipt_no", "use_date", "member_id", "가맹점", "품목", "category", "amount"],
-                         [(r["no"], r["date"].isoformat(), r["mid"], r["store"], r["item"], r["cat"], r["amount"]) for r in rec_rows])
-        f_mem = csv_text(["member_id", "이름", "소속", "직급", "재직상태", "퇴사일", "입사일", "근무지", "내선"],
-                         [(m["id"], m["name"], m["dept"], m["pos"], m["status"], m["leave"].isoformat() if m["leave"] else "", *extra[(c, m["id"])]) for m in data[c]["members"]])
+    groups = [clubs[0:3], clubs[3:6], clubs[6:9]]
+    for gi, g in enumerate(groups, 1):
+        rec_rows = sorted([(c, r) for c in g for r in data[c]["receipts"]], key=lambda x: (g.index(x[0]), x[1]["date"], x[1]["no"]))
+        f_rec = csv_text(["동호회", "receipt_no", "use_date", "member_id", "가맹점", "category", "amount"],
+                         [(c, r["no"], r["date"].isoformat(), r["mid"], r["store"], r["cat"], r["amount"]) for c, r in rec_rows])
+        f_mem = csv_text(["동호회", "member_id", "이름", "소속", "직급", "재직상태", "퇴사일", "입사일", "근무지", "내선"],
+                         [(c, m["id"], m["name"], m["dept"], m["pos"], m["status"], m["leave"].isoformat() if m["leave"] else "", *extra[(c, m["id"])]) for c in g for m in data[c]["members"]])
         f_join = csv_text(["member_id", "동호회", "가입일"],
-                          [(m["id"], c, m["joined"].isoformat()) for m in data[c]["members"]])
-        files.append({"name": f"{c}/영수증.csv", "kind": "csv", "text": f_rec})
-        files.append({"name": f"{c}/회원명단.csv", "kind": "csv", "text": f_mem})
-        files.append({"name": f"{c}/가입일.csv", "kind": "csv", "text": f_join})
+                          [(m["id"], c, m["joined"].isoformat()) for c in g for m in data[c]["members"]])
+        files.append({"name": f"영수증_{gi}조.csv", "kind": "csv", "text": f_rec})
+        files.append({"name": f"회원명단_{gi}조.csv", "kind": "csv", "text": f_mem})
+        files.append({"name": f"가입일_{gi}조.csv", "kind": "csv", "text": f_join})
 
     f_rules = """# 사내 동호회 활동비 정산 규정 (2026년 3분기)
 
@@ -1034,7 +1036,7 @@ def task3():
 
     # 풀이 가이드 데이터 ------------------------------------------------
     tok = {f["name"]: est_tokens(f["text"]) for f in files}
-    rec_files = [f"{c}/영수증.csv" for c in clubs]
+    rec_files = [f"영수증_{gi}조.csv" for gi in (1, 2, 3)]
     rec_tok = sum(tok[n] for n in rec_files)
     assert rec_tok <= 20000, rec_tok
     where = defaultdict(list)
@@ -1083,7 +1085,7 @@ def task3():
     young_rows.sort()
 
     batches = [clubs[0:3], clubs[3:6], clubs[6:9]]
-    batch_files = [[f"{c}/{k}.csv" for c in b for k in ("영수증", "회원명단", "가입일")] for b in batches]
+    batch_files = [[f"{k}_{gi}조.csv" for k in ("영수증", "회원명단", "가입일")] for gi in (1, 2, 3)]
     batch_tok = [sum(tok[n] for n in bf) for bf in batch_files]
     assert all(t <= 20000 for t in batch_tok)
 
@@ -1100,16 +1102,16 @@ def task3():
         "공고와 규정이 다른 항목은 무엇을 적용하는지 근거 조항과 함께 한 줄로 따로 적어줘. 문서에 없는 기준은 만들지 마."
     )
     t3_turn2 = (
-        "첨부한 동호회 9곳 영수증.csv 전체에서 아래 네 가지만 찾아줘. 다른 판정은 하지 마.\n"
+        "첨부한 영수증 파일 3개(동호회 9곳 전체)에서 아래 네 가지만 찾아줘. 다른 판정은 하지 마.\n"
         "①receipt_no가 2번 이상 나온 번호와 나온 동호회 ②category가 주류·상품권인 영수증 ③use_date가 2026-07-01~2026-09-30 밖인 영수증 "
         "④amount가 50,000원을 넘는 영수증과 금액.\n항목마다 번호를 오름차순으로 생략 없이 적고 개수를 함께 써."
     )
 
     def batch_prompt(b):
         return (
-            f"판정표: ①use_date 7/1~9/30만 ②use_date-가입일≥30일(member_id로 가입일.csv 연결) ③퇴사일 이후 불인정, 당일 인정 "
+            f"판정표: ①use_date 7/1~9/30만 ②use_date-가입일≥30일(member_id로 가입일 파일 연결, 입사일 아님) ③퇴사일 이후 불인정, 당일 인정 "
             f"④주류·상품권 불인정 ⑤중복 청구 {', '.join(dup_list)} 불인정 ⑥건당 5만 원 초과분만 불인정 ⑦동호회 한도 30만 원\n"
-            f"첨부한 {'·'.join(b)} 동호회 파일에 적용해 동호회별로 알려줘: 전액 불인정 번호와 사유, 일부 인정 번호와 인정액, 인정 합계, 한도 적용 후 지급액. "
+            f"첨부한 {batches.index(b) + 1}조 파일 3개({'·'.join(b)})에 적용해 동호회별로 알려줘: 전액 불인정 번호와 사유, 일부 인정 번호와 인정액, 인정 합계, 한도 적용 후 지급액. "
             "번호는 생략하지 말고, 이름으로 같은 사람을 추정하지 마."
         )
 
@@ -1134,10 +1136,10 @@ def task3():
                        "규정에 없는 예외(예: 동호회장 승인)를 지어냈는지 본다."],
         },
         {
-            "n": 2, "title": "영수증 9개만 붙여 전체 대조",
+            "n": 2, "title": "영수증 파일 3개만 붙여 전체 대조",
             "select": [1, 2, 3, 4], "attach": rec_files,
             "prompt": t3_turn2,
-            "why": f"영수증 파일 9개만 합치면 {rec_tok:,}토큰(한도의 {rec_tok / 200:.0f}%)이라 절반 안에 들어간다. 중복 번호처럼 동호회 사이에 걸친 조건은 여기서만 잡을 수 있다. 회원명단·가입일이 필요 없는 규칙만 묻는다.",
+            "why": f"영수증 파일 3개(동호회 9곳)만 합치면 {rec_tok:,}토큰(한도의 {rec_tok / 200:.0f}%)이라 절반 안에 들어간다. 중복 번호처럼 동호회 사이에 걸친 조건은 여기서만 잡을 수 있다. 회원명단·가입일이 필요 없는 규칙만 묻는다.",
             "expect": [
                 {"caption": "① 중복 청구", "headers": ["receipt_no", "나온 곳"], "rows": t3_dup_rows},
                 {"caption": "② 주류·상품권", "headers": ["receipt_no", "동호회", "category"], "rows": t3_cat_rows},
@@ -1150,7 +1152,7 @@ def task3():
     ]
     for bi, b in enumerate(batches):
         turns3.append({
-            "n": 3 + bi, "title": f"묶음 {bi + 1}: {'·'.join(b)}",
+            "n": 3 + bi, "title": f"묶음 {bi + 1}: {bi + 1}조 ({'·'.join(b)})",
             "select": [1, 2, 3, 4], "attach": batch_files[bi],
             "prompt": batch_prompt(b),
             "why": ("판정표를 직접 입력하고, 2회차에서 찾은 중복 번호를 ⑤에 넣었다. 동호회 3곳 파일 9개는 "
@@ -1164,15 +1166,15 @@ def task3():
     assert all_bad == disallowed
     paid_rows = [[c, f"{detail[c][2]:,}", f"{detail[c][3]:,}"] for c in clubs] + [["합계", "", f"{total_paid:,}"]]
     walk = {
-        "goal": f"파일 29개 합계 약 {total_tokens:,}토큰이라 한 번에 붙일 수 없다. 한도 안이라도 꽉 채우면 내장 AI가 틀리기 쉬우니(10/17 후기), 회차마다 절반 이하로 맞춘다. 기준 1회 → 영수증 전체 대조 1회 → 동호회 묶음 3회 → 손으로 취합. AI는 5회 쓴다.",
+        "goal": f"파일 {len(files)}개, 합계 약 {total_tokens:,}토큰이라 한 번에 붙일 수 없다(질문 1회 파일 5개·2만 토큰). 꽉 채우면 내장 AI가 틀리기 쉽고 앞 질문의 조건도 잊으니(10/17 후기), 회차마다 파일 3개 이하·한도 절반 이하로 맞추고 판정표는 메모장에 적어 매번 붙인다. 기준 1회 → 영수증 전체 대조 1회 → 조별 묶음 3회 → 손으로 취합. AI는 5회 쓴다.",
         "reading": [
             {"q": "1번", "need": "전액 불인정 영수증 번호 전체 (오름차순, 중복 번호는 한 번)", "src": "영수증·회원명단·가입일 + 규정 2~4·6조"},
             {"q": "2번", "need": "가입 30일 미만 청구 건수 (다른 사유와 겹쳐도 포함)", "src": "영수증 use_date, 가입일 + 규정 3조"},
             {"q": "3번", "need": "인정 합계가 30만 원을 넘는 동호회 (건당 5만 원 적용)", "src": "영수증 amount + 규정 5·7·8조"},
             {"q": "4번", "need": "동호회별 지급액(한도 적용) 합계", "src": "3번 계산 결과"},
         ],
-        "plan": (f"1회차 규정+공고({tok['정산규정.md'] + tok['공고문.md']:,}토큰) → 2회차 영수증.csv 9개({rec_tok:,}토큰, 한도의 {rec_tok / 200:.0f}%) → 3~5회차 동호회 3곳씩 "
-                 f"({', '.join(f'{t:,}' for t in batch_tok)}토큰) → 손으로 취합. 모든 회차가 한도의 절반(10,000토큰) 안이다. 남는 5회는 어긋난 동호회만 좁혀서 다시 묻는 데 쓴다."),
+        "plan": (f"1회차 규정+공고({tok['정산규정.md'] + tok['공고문.md']:,}토큰) → 2회차 영수증 파일 3개({rec_tok:,}토큰, 한도의 {rec_tok / 200:.0f}%) → 3~5회차 조별 파일 3개씩 "
+                 f"({', '.join(f'{t:,}' for t in batch_tok)}토큰) → 손으로 취합. 모든 회차가 파일 3개 이하, 한도의 절반(10,000토큰) 안이다. 어긋난 동호회만 좁혀서 다시 묻는 데 남은 횟수를 쓴다."),
         "batches": [{"label": f"묶음 {i + 1}", "clubs": b, "tokens": batch_tok[i]} for i, b in enumerate(batches)],
         "turns": turns3,
         "manual": {
@@ -1189,7 +1191,7 @@ def task3():
             {"q": "3번", "answer": "① 등산", "how": f"건당 5만 원 기준 인정 합계: 등산 {final50['등산']:,}원만 30만 원 초과"},
             {"q": "4번", "answer": f"{total_paid}", "how": "동호회별 지급액 합 (등산은 300,000원으로 계산)"},
         ],
-        "usage": "AI 5회 / 10회. 읽기 4분, 판정표 3분, 대조 4분, 묶음 3회 8분, 취합·입력 3분. 22분을 넘기기 쉬운 과제라 묶음 처리 중 대기 시간에 취합 표를 미리 그려 둔다.",
+        "usage": "AI 5회, 2교시 전체 80회 중. 읽기 4분, 판정표 3분, 대조 4분, 묶음 3회 8분, 취합·입력 3분. 22분을 넘기기 쉬운 과제라 묶음 처리 중 대기 시간에 취합 표를 미리 그려 둔다.",
     }
 
     opts3 = ["등산", "등산, 풋살", "등산, 풋살, 밴드", "풋살", "한도를 넘는 동호회 없음"]
@@ -1202,12 +1204,12 @@ def task3():
         "id": "T3",
         "title": "동호회 활동비 정산 심사",
         "scenario": (
-            "인사팀 복리후생 담당으로 9개 사내 동호회의 3분기 활동비 정산을 심사한다. 동호회마다 영수증·회원명단·가입일 파일이 있고, "
+            "인사팀 복리후생 담당으로 9개 사내 동호회의 3분기 활동비 정산을 심사한다. 동호회 3곳씩 묶은 조별 영수증·회원명단·가입일 파일이 있고, "
             "정산 규정과 공고문이 따로 있다. 파일 전체 토큰이 한 번에 첨부할 수 있는 양보다 많다."
         ),
         "cautions": [
             "공고문과 규정이 다르면 규정을 따른다.",
-            "한 번 질문할 때 첨부할 수 있는 양이 정해져 있으니 묶어서 처리할 계획을 먼저 세운다.",
+            "질문 한 번에 첨부할 수 있는 양(파일 5개, 2만 토큰)이 정해져 있으니 묶어서 처리할 계획을 먼저 세운다.",
         ],
         "files": files,
         "questions": [
@@ -1246,7 +1248,7 @@ def task3():
         "promptExample": (
             "1차(규정+공고만 첨부): 두 문서로 동호회 영수증 판정표를 만들어줘. 조건별로 확인할 파일·열, 경계값(30일=인정, 퇴사일 당일=인정), "
             "공고와 규정이 다를 때 적용값(건당 5만 원)을 표로. 근거 조항 번호를 붙이고 문서에 없는 기준은 만들지 마.\n"
-            "2차부터(동호회 3~4곳 파일 + 판정표 요약 직접 입력): 판정표 1~6을 적용해 영수증별로 '전액 불인정(사유)/일부 인정(인정액)/인정'을 표로. "
+            "2차부터(조별 파일 3개 + 메모장의 판정표 요약을 맨 앞에 붙여 넣기): 판정표 1~6을 적용해 영수증별로 '전액 불인정(사유)/일부 인정(인정액)/인정'을 표로. "
             "가입일은 member_id로 연결하고 이름으로 추정하지 마. 동호회별 인정액 합계와 한도 적용 후 지급액, 전액 불인정 번호 전체를 생략 없이 적어줘.\n"
             "마지막: 동호회별 결과만 모아서 중복 receipt_no를 다시 대조해."
         ),
@@ -1488,7 +1490,7 @@ def task4():
             {"q": "3번", "answer": f"{monthly_eq}", "how": f"{', '.join(annual_tools)}만 20% 할인, DesignHub는 정가"},
             {"q": "4번", "answer": "② DesignHub", "how": f"정리 후 {seats['DesignHub']}석 < 10석"},
         ],
-        "usage": "AI 1회(경계 확인까지 2회) / 10회. 읽기 3분, 프롬프트 3분, 검증·곱셈 8분, 입력 2분.",
+        "usage": "AI 1회(경계 확인까지 2회), 2교시 전체 80회 중. 읽기 3분, 프롬프트 3분, 검증·곱셈 8분, 입력 2분.",
     }
 
     f_lic = csv_text(["user_id", "tool", "plan", "dept", "last_login", "active_days_30d"],
@@ -1679,7 +1681,7 @@ def task5():
         "select": [1, 2, 3, 4],
         "attach": ["판정기준_v3.md", "MT-03_보정공지.md", "재측정_기록.csv", "특채_승인메모.md"],
         "prompt": t1_prompt,
-        "why": "데이터를 붙이기 전에 판정 규칙부터 고정한다. 폐기된 v2와 회의록은 붙이지 않는다(파티클 25개 같은 틀린 기준이 섞인다). 판정표는 다음 질문마다 직접 쳐 넣을 거라 짧게 받는다.",
+        "why": "데이터를 붙이기 전에 판정 규칙부터 고정한다. 폐기된 v2와 회의록은 붙이지 않는다(파티클 25개 같은 틀린 기준이 섞인다). 내장 AI는 다음 질문에서 이 판정표를 기억하지 못하니, 짧게 받아서 메모장에 옮겨 두고 매 질문 맨 앞에 붙인다.",
         "expect": [
             {"caption": "기대 판정표", "headers": ["항목", "내용", "근거"], "rows": rule_rows},
             {"caption": "재측정 (이번 주 HBM-D7, 판정에 쓸 값)", "headers": ["lot_id", "wafer", "항목", "판정에 쓸 값", "재측정 시각"], "rows": rem_rows},
@@ -1718,7 +1720,7 @@ def task5():
             "attach": fnames,
             "prompt": batch_prompt(days),
             "why": (f"일자 파일 {'2개' if len(days) == 2 else '1개'}({sum(tok[n] for n in fnames):,}토큰, 한도의 {sum(tok[n] for n in fnames) / 200:.0f}%)만 붙인다. "
-                    "판정표와 이 날짜에 해당하는 재측정 값만 직접 적었다. 결과를 표로 받아야 다음 단계에서 손으로 합칠 수 있다. 3번 문항은 계산만 하면 되니 고르지 않는다."),
+                    "앞 질문을 기억하지 못하니 메모장의 판정표를 맨 앞에 붙이고, 이 날짜에 해당하는 재측정 값만 덧붙였다. 결과를 표로 받아야 다음 단계에서 손으로 합칠 수 있다. 3번 문항은 계산만 하면 되니 고르지 않는다."),
             "expect": [
                 {"caption": "① 행 수", "headers": ["파일", "HBM-D7 행", "로트", "비고"], "rows": cnt_rows},
                 {"caption": "② 불량 웨이퍼", "headers": ["lot_id", "wafer", "tool", "measured_at", "걸린 항목 (원래 값→판정 값)"], "rows": badw_rows(days)},
@@ -1748,7 +1750,7 @@ def task5():
         ],
         "plan": (f"1회차 기준 4개({sum(tok[n] for n in turns[0]['attach']):,}토큰) → 2회차 10/12·10/13({sum(tok[n] for n in turns[1]['attach']):,}) → "
                  f"3회차 10/14·10/15({sum(tok[n] for n in turns[2]['attach']):,}) → 4회차 10/16({sum(tok[n] for n in turns[3]['attach']):,}) → 손 취합. "
-                 "모든 회차가 한도의 절반 이하. 남는 6회는 어긋난 로트만 좁혀 다시 묻는 데 쓴다. 붙이지 않는 파일: 판정기준_v2.md(폐기), 주간회의록_1015.md(결정 아님), 검사결과_1009.csv(기간 밖)."),
+                 "모든 회차가 파일 4개 이하, 한도의 절반 이하. 어긋난 로트만 좁혀 다시 묻는 데 남은 횟수를 쓴다. 붙이지 않는 파일: 판정기준_v2.md(폐기), 주간회의록_1015.md(결정 아님), 검사결과_1009.csv(기간 밖)."),
         "turns": turns,
         "manual": {
             "title": "5단계: 묶음 결과를 손으로 합치기",
@@ -1762,7 +1764,7 @@ def task5():
             {"q": "3번", "answer": f"{ratio:.1f}", "how": f"({n_lots} − {len(no_ship)}) ÷ {n_lots} × 100 = {d['ship_ratio']:.3f} → {ratio:.1f}"},
             {"q": "4번", "answer": str(d["n_badw"]), "how": "묶음별 ② 표의 행 수 합계"},
         ],
-        "usage": "AI 4회 / 10회. 문항 읽기 3분, 판정표 3분, 묶음 3회 9분(대기 시간에 직전 결과를 손으로 옮겨 적기), 취합·입력 4분.",
+        "usage": "AI 4회, 2교시 전체 80회 중. 문항 읽기 3분, 판정표 3분, 묶음 3회 9분(대기 시간에 직전 결과를 손으로 옮겨 적기), 취합·입력 4분.",
     }
 
     changed = d["changed"]
@@ -1853,6 +1855,8 @@ def main():
             assert turn["attachTokens"] <= 20000, (t["id"], turn["n"], turn["attachTokens"])
             # 10/17 후기: 첨부를 4분의 3쯤 채우면 내장 AI가 틀린 답만 냈다 → 풀이는 회차마다 절반 이하로
             assert turn["attachTokens"] <= 10000, ("절반 초과", t["id"], turn["n"], turn["attachTokens"])
+            # 10/17 후기: 질문 1회 첨부 파일 5개까지
+            assert len(turn["attach"]) <= 5, ("파일 5개 초과", t["id"], turn["n"], len(turn["attach"]))
             print(f"   walk {t['id']} turn {turn['n']}: prompt {turn['promptChars']}자, attach {turn['attachTokens']:,}토큰 ({turn['attachTokens'] / 200:.0f}%)")
     payload = json.dumps(tasks, ensure_ascii=False, indent=1, default=str)
     OUT.write_text(

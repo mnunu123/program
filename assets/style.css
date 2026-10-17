@@ -474,3 +474,7 @@ details.mini > summary { cursor: pointer; font-size: 0.88rem; color: var(--link)
 .fmt-card h3 { margin-top: 0; }
 .fmt-card ol { margin: 6px 0 0; }
 .tag-review { background: var(--ok-soft); border-color: transparent; color: var(--ok); font-weight: 600; }
+.memo-pane { border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); padding: 6px; margin: 6px 0 0; }
+.memo-pane textarea { width: 100%; min-height: 96px; resize: vertical; font: inherit; font-size: 0.85rem; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--ink); padding: 6px; }
+.memo-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px; }
+.chip.on { background: var(--amber-soft); border-color: var(--amber); }
