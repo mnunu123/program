@@ -1,0 +1,14 @@
+{
+  "name": "hynix-ai-hackathon-prep",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SK하이닉스 AI 해커톤 2026 1차 예선(프로그래머스 AI 역량평가) 대비 가이드와 모의고사",
+  "scripts": {
+    "start": "node server.js",
+    "gen": "python3 tools/gen_tasks.py && python3 tools/verify_tasks.py",
+    "bundle": "node scripts/build-single.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
